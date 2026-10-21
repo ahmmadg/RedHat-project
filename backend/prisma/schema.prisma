@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  USER
+  COURIER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum CourierResponse {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  fullName     String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         UserRole @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customerOrders Order[] @relation("CustomerOrders")
+  courierOrders  Order[] @relation("CourierOrders")
+  statusChanges  OrderStatusHistory[] @relation("StatusChangedBy")
+}
+
+model Order {
+  id               String          @id @default(uuid())
+  trackingNumber   String          @unique
+  pickupLocation   String
+  dropoffLocation  String
+  packageDetails   String
+  deliveryTime     DateTime
+  status           OrderStatus     @default(PENDING)
+  courierResponse  CourierResponse @default(PENDING)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  customerId       String
+  customer         User            @relation("CustomerOrders", fields: [customerId], references: [id])
+
+  courierId        String?
+  courier          User?           @relation("CourierOrders", fields: [courierId], references: [id])
+
+  statusHistory    OrderStatusHistory[]
+}
+
+model OrderStatusHistory {
+  id          String      @id @default(uuid())
+  status      OrderStatus
+  note        String?
+  createdAt   DateTime    @default(now())
+
+  orderId     String
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  changedById String?
+  changedBy   User?       @relation("StatusChangedBy", fields: [changedById], references: [id])
+}

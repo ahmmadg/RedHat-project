@@ -1,0 +1,84 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Page-1" id="03XZtn_GFWSInXpVCOI6">
+    <mxGraphModel dx="1654" dy="918" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#172B4D;spacingLeft=5;" value="PARCEL TRACKING SYSTEM&#xa;DATABASE ENTITY RELATIONSHIP DIAGRAM" vertex="1">
+          <mxGeometry height="65" width="850" x="60" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="XT4dyxck9znqI8o_LBuL-1" edge="1" parent="1" source="subtitle" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="user-fields" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" parent="1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;fontSize=12;fontColor=#667085;" value="PostgreSQL  |  Prisma ORM  |  Core entities and relationships" vertex="1">
+          <mxGeometry height="25" width="700" x="65" y="92" as="geometry" />
+        </mxCell>
+        <mxCell id="user" parent="1" style="swimlane;html=1;startSize=42;horizontal=1;rounded=1;arcSize=8;collapsible=0;whiteSpace=wrap;fillColor=#1D4ED8;swimlaneFillColor=#FFFFFF;strokeColor=#1D4ED8;fontColor=#FFFFFF;fontSize=16;fontStyle=1;align=center;shadow=1;" value="&lt;b&gt;USER&lt;/b&gt;" vertex="1">
+          <mxGeometry height="390" width="320" x="60" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="user-fields" parent="1" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=16;spacingTop=12;fontSize=13;fontColor=#344054;" value="&lt;div style=&#39;text-align:left;line-height:1.8&#39;&gt;&lt;font color=&#39;#1D4ED8&#39;&gt;&lt;b&gt;PK&lt;/b&gt;&lt;/font&gt;  id : String (UUID)&lt;br&gt;&lt;b&gt;UQ&lt;/b&gt;  email : String&lt;br&gt;fullName : String&lt;br&gt;phone : String?&lt;br&gt;passwordHash : String&lt;br&gt;role : UserRole&lt;br&gt;createdAt : DateTime&lt;br&gt;updatedAt : DateTime&lt;/div&gt;" vertex="1">
+          <mxGeometry height="245" width="320" x="60" y="212" as="geometry" />
+        </mxCell>
+        <mxCell id="user-enum" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#BFDBFE;fontColor=#1E40AF;fontSize=12;align=left;spacingLeft=12;" value="&lt;b&gt;ENUM · UserRole&lt;/b&gt;&lt;br&gt;USER  |  COURIER  |  ADMIN" vertex="1">
+          <mxGeometry height="65" width="288" x="76" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="order" parent="1" style="swimlane;html=1;startSize=42;horizontal=1;rounded=1;arcSize=8;collapsible=0;whiteSpace=wrap;fillColor=#15803D;swimlaneFillColor=#FFFFFF;strokeColor=#15803D;fontColor=#FFFFFF;fontSize=16;fontStyle=1;align=center;shadow=1;" value="&lt;b&gt;ORDER&lt;/b&gt;" vertex="1">
+          <mxGeometry height="550" width="390" x="540" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="order-fields" parent="1" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=16;spacingTop=12;fontSize=13;fontColor=#344054;" value="&lt;div style=&#39;text-align:left;line-height:1.65&#39;&gt;&lt;font color=&#39;#15803D&#39;&gt;&lt;b&gt;PK&lt;/b&gt;&lt;/font&gt;  id : String (UUID)&lt;br&gt;&lt;b&gt;UQ&lt;/b&gt;  trackingNumber : String&lt;br&gt;pickupLocation : String&lt;br&gt;dropoffLocation : String&lt;br&gt;packageDetails : String&lt;br&gt;deliveryTime : DateTime&lt;br&gt;status : OrderStatus&lt;br&gt;courierResponse : CourierResponse&lt;br&gt;createdAt : DateTime&lt;br&gt;updatedAt : DateTime&lt;hr&gt;&lt;font color=&#39;#B45309&#39;&gt;&lt;b&gt;FK&lt;/b&gt;&lt;/font&gt;  customerId : String&lt;br&gt;&lt;font color=&#39;#B45309&#39;&gt;&lt;b&gt;FK&lt;/b&gt;&lt;/font&gt;  courierId : String?&lt;/div&gt;" vertex="1">
+          <mxGeometry height="325" width="390" x="540" y="192" as="geometry" />
+        </mxCell>
+        <mxCell id="order-status-enum" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#BBF7D0;fontColor=#166534;fontSize=12;align=left;spacingLeft=12;" value="&lt;b&gt;ENUM · OrderStatus&lt;/b&gt;&lt;br&gt;PENDING  |  PICKED_UP  |  IN_TRANSIT&lt;br&gt;DELIVERED  |  CANCELLED" vertex="1">
+          <mxGeometry height="75" width="360" x="555" y="525" as="geometry" />
+        </mxCell>
+        <mxCell id="order-response-enum" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFF7ED;strokeColor=#FED7AA;fontColor=#9A3412;fontSize=12;align=left;spacingLeft=12;" value="&lt;b&gt;ENUM · CourierResponse&lt;/b&gt;&lt;br&gt;PENDING  |  ACCEPTED  |  DECLINED" vertex="1">
+          <mxGeometry height="65" width="360" x="555" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="history" parent="1" style="swimlane;html=1;startSize=42;horizontal=1;rounded=1;arcSize=8;collapsible=0;whiteSpace=wrap;fillColor=#7E22CE;swimlaneFillColor=#FFFFFF;strokeColor=#7E22CE;fontColor=#FFFFFF;fontSize=15;fontStyle=1;align=center;shadow=1;" value="&lt;b&gt;ORDER STATUS HISTORY&lt;/b&gt;" vertex="1">
+          <mxGeometry height="280" width="360" x="1100" y="210" as="geometry" />
+        </mxCell>
+        <mxCell id="history-fields" parent="1" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;spacingLeft=16;spacingTop=12;fontSize=13;fontColor=#344054;" value="&lt;div style=&#39;text-align:left;line-height:1.8&#39;&gt;&lt;font color=&#39;#7E22CE&#39;&gt;&lt;b&gt;PK&lt;/b&gt;&lt;/font&gt;  id : String (UUID)&lt;br&gt;status : OrderStatus&lt;br&gt;note : String?&lt;br&gt;createdAt : DateTime&lt;hr&gt;&lt;font color=&#39;#B45309&#39;&gt;&lt;b&gt;FK&lt;/b&gt;&lt;/font&gt;  orderId : String&lt;br&gt;&lt;font color=&#39;#B45309&#39;&gt;&lt;b&gt;FK&lt;/b&gt;&lt;/font&gt;  changedById : String?&lt;/div&gt;" vertex="1">
+          <mxGeometry height="225" width="360" x="1100" y="252" as="geometry" />
+        </mxCell>
+        <mxCell id="customer-rel" edge="1" parent="1" source="user" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#2563EB;strokeWidth=2;endArrow=ERoneToMany;endFill=0;fontSize=12;fontColor=#1D4ED8;labelBackgroundColor=#FFFFFF;" target="order" value="customer / owns orders">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="450" y="250" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="courier-rel" edge="1" parent="1" source="user" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#16A34A;strokeWidth=2;dashed=1;endArrow=ERoneToMany;endFill=0;fontSize=12;fontColor=#166534;labelBackgroundColor=#FFFFFF;" target="order" value="courier / assigned orders (optional)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="530" />
+              <mxPoint x="500" y="530" />
+              <mxPoint x="500" y="640" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="history-order-rel" edge="1" parent="1" source="order" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=2;endArrow=ERoneToMany;endFill=0;fontSize=12;fontColor=#7E22CE;labelBackgroundColor=#FFFFFF;" target="history" value="has status history">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1010" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="history-actor-rel" edge="1" parent="1" source="user" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#9333EA;strokeWidth=2;dashed=1;endArrow=ERoneToMany;endFill=0;fontSize=12;fontColor=#7E22CE;labelBackgroundColor=#FFFFFF;" target="history" value="changed by (optional actor)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="220" y="790" />
+              <mxPoint x="1280" y="790" />
+              <mxPoint x="1280" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;fontColor=#475467;fontSize=12;align=left;spacingLeft=16;spacingTop=10;" value="&lt;b&gt;LEGEND&lt;/b&gt;&lt;br&gt;&lt;font color=&#39;#1D4ED8&#39;&gt;PK&lt;/font&gt; = Primary Key     &lt;font color=&#39;#B45309&#39;&gt;FK&lt;/font&gt; = Foreign Key     UQ = Unique     ? = Optional field&lt;br&gt;&lt;font color=&#39;#2563EB&#39;&gt;━━&lt;/font&gt; Customer relationship     &lt;font color=&#39;#16A34A&#39;&gt;┄┄&lt;/font&gt; Optional courier relationship" vertex="1">
+          <mxGeometry height="90" width="1000" x="60" y="850" as="geometry" />
+        </mxCell>
+        <mxCell id="notes" parent="1" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D0D5DD;fontColor=#475467;fontSize=12;align=left;spacingLeft=16;spacingTop=10;" value="RELATIONSHIP RULES&#xa;• Each order belongs to exactly one customer.&#xa;• Each order can have zero or one assigned courier.&#xa;• Each order can have many status-history records.&#xa;• A history record can have zero or one user recorded as the actor." vertex="1">
+          <mxGeometry height="170" width="360" x="1100" y="560" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
