@@ -1,0 +1,12 @@
+@import './theme/theme.css';
+
+/* Ensure root spans the entire screen with fluid responsive layout */
+#root {
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-sizing: border-box;
+  text-align: left;
+}
