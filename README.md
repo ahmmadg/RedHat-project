@@ -103,6 +103,7 @@ The application invokes repository abstractions, while Infrastructure provides t
 - Extensible design for shipment tracking, courier operations, and administration.
 
 
+```text
 
 frontend/
 ├── public/                         # Static assets served directly without bundling
@@ -161,3 +162,4 @@ frontend/
 ├── index.html                      # HTML template entry point
 ├── package.json                    # Project dependencies and script definitions
 └── vite.config.js                  # Vite configuration with React plugin
+```
