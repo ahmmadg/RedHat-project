@@ -101,3 +101,63 @@ The application invokes repository abstractions, while Infrastructure provides t
 - Replaceable infrastructure implementations.
 - Centralized authentication and authorization.
 - Extensible design for shipment tracking, courier operations, and administration.
+
+
+
+frontend/
+├── public/                         # Static assets served directly without bundling
+│
+├── src/
+│   ├── app/                        # Application core setup & router
+│   │   └── router.jsx              # Central router configuration with route guards
+│   │
+│   ├── assets/                     # Static media, SVG icons, and illustrations
+│   │   ├── hero.png                # Hero illustration
+│   │   ├── react.svg
+│   │   └── vite.svg
+│   │
+│   ├── components/                 # Shared, reusable presentation components
+│   │   ├── layout/                 # Structural app-shell layouts
+│   │   │   └── Navbar.jsx          # Top navigation bar with user profile & role badges
+│   │   └── ui/                     # Design-system primitive UI elements
+│   │       ├── Badge.jsx           # Status & role indicators
+│   │       ├── Button.jsx          # Interactive button variants (primary, outline, ghost)
+│   │       ├── Card.jsx            # Surface containers & stat cards
+│   │       ├── Icons.jsx           # SVG iconography library
+│   │       └── Input.jsx           # Text inputs, forms, and validation wrappers
+│   │
+│   ├── contexts/                   # Global React Context providers
+│   │   └── AuthContext.jsx         # User session, JWT state, login/logout actions
+│   │
+│   ├── features/                   # Feature-based domain modules
+│   │   └── auth/                   # Authentication & user workflow feature
+│   │       ├── pages/              # View pages associated with authentication & role views
+│   │       │   ├── DashboardPage.jsx # Dynamic role-based dashboard (Customer, Courier, Admin)
+│   │       │   ├── LoginPage.jsx     # User login form & credentials authentication
+│   │       │   └── RegisterPage.jsx  # New user onboarding & account creation
+│   │       └── services/           # Feature-specific network requests
+│   │           └── auth-service.js   # Login and registration API calls
+│   │
+│   ├── routes/                     # Routing middleware and route guard components
+│   │   ├── ProtectedRoute.jsx      # Authentication guard (redirects unauthenticated users)
+│   │   └── RoleRoute.jsx           # Authorization guard (validates user roles like ADMIN, COURIER)
+│   │
+│   ├── services/                   # Application-wide infrastructure services
+│   │   └── api-client.js           # Central Axios instance with token interceptors
+│   │
+│   ├── theme/                      # Styling architecture & design tokens
+│   │   └── theme.css               # Logistics theme system (colors, typography, cards, badges)
+│   │
+│   ├── utils/                      # Shared helper functions and formatters
+│   │
+│   ├── App.css                     # Root application styling
+│   ├── App.jsx                     # Root component rendering AppRouter
+│   ├── index.css                   # Global CSS imports & body resets
+│   └── main.jsx                    # Application entry point (ReactDOM root mount)
+│
+├── .env                            # Environment configuration (VITE_API_URL)
+├── .gitignore                      # Git ignored files & directories
+├── eslint.config.js                # ESLint flat configuration
+├── index.html                      # HTML template entry point
+├── package.json                    # Project dependencies and script definitions
+└── vite.config.js                  # Vite configuration with React plugin
