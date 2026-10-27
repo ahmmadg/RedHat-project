@@ -41,15 +41,6 @@ export default function CreateOrderPage() {
   const [alertError, setAlertError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  function fillSampleData() {
-    setPickupLocation("14 Abbas El Akkad, Nasr City, Cairo");
-    setDropoffLocation("Villa 22, Road 9, Maadi, Cairo");
-    setPackageDetails("2x Cotton T-shirts, Fragile glass container, Cash on Delivery: EGP 450");
-    setDeliveryTime(getTomorrowNoon());
-    setErrors({});
-    setAlertError("");
-  }
-
   function validate() {
     const errs = {};
     if (!pickupLocation.trim()) {
@@ -151,34 +142,22 @@ export default function CreateOrderPage() {
           </div>
         </div>
 
-        {/* Page Title & Fast Fill Action */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <Badge variant="brand" dot={false}>
-                Feature #3 & #4
-              </Badge>
-              <span style={{ fontSize: "0.875rem", color: "var(--color-slate-500)" }}>
-                Express Consignment Booking
-              </span>
-            </div>
-            <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-slate-900)" }}>
-              Book a Package Delivery
-            </h1>
-            <p style={{ color: "var(--color-slate-500)", fontSize: "0.9375rem" }}>
-              Enter your pickup, drop-off, and parcel details. A courier will be assigned to collect and deliver your package.
-            </p>
+        {/* Page Title */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+            <Badge variant="brand" dot={false}>
+              Feature #3 & #4
+            </Badge>
+            <span style={{ fontSize: "0.875rem", color: "var(--color-slate-500)" }}>
+              Express Consignment Booking
+            </span>
           </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={fillSampleData}
-            title="Click to quickly fill sample Cairo delivery details for testing"
-          >
-            ⚡ Auto-Fill Sample Data
-          </Button>
+          <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-slate-900)" }}>
+            Book a Package Delivery
+          </h1>
+          <p style={{ color: "var(--color-slate-500)", fontSize: "0.9375rem" }}>
+            Enter your pickup, drop-off, and parcel details. A courier will be assigned to collect and deliver your package.
+          </p>
         </div>
 
         {/* Prominent Error Alert */}
