@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./presentation/routes/auth-routes.js";
 import protectedRoutes from "./presentation/routes/protected-routes.js";
+import orderRoutes from "./presentation/routes/order-routes.js";
 
 const app = express();
 app.use(cors({
@@ -19,6 +20,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/orders", orderRoutes);
 app.use("/api", protectedRoutes);
 
 

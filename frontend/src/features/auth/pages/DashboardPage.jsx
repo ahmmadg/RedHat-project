@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import Navbar from "../../../components/layout/Navbar";
 import Button from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Card from "../../../components/ui/Card";
+import orderService from "../../orders/services/order-service";
 import {
   PackageIcon,
   TruckIcon,
@@ -167,6 +169,7 @@ const SAMPLE_SHIPMENTS = [
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Role directly taken from the login response (user.role)
   const role = user?.role || "USER";
@@ -176,6 +179,31 @@ export default function DashboardPage() {
   const [courierStops, setCourierStops] = useState(INITIAL_COURIER_STOPS);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTrackingId, setActiveTrackingId] = useState("BST-9842-EG");
+  const [myOrders, setMyOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (role !== "COURIER" && role !== "ADMIN") {
+      setLoadingOrders(true);
+      orderService
+        .getMyOrders()
+        .then((res) => {
+          if (isMounted && res?.data) {
+            setMyOrders(res.data);
+          }
+        })
+        .catch((err) => {
+          console.warn("Could not load real customer orders:", err.message);
+        })
+        .finally(() => {
+          if (isMounted) setLoadingOrders(false);
+        });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [role]);
 
   const activeShipment =
     SAMPLE_SHIPMENTS.find((s) => s.id.toLowerCase() === activeTrackingId.toLowerCase()) ||
@@ -193,18 +221,29 @@ export default function DashboardPage() {
     setNotification(`Stop ${stopId} marked as successfully delivered! Proof of delivery recorded.`);
   }
 
-  function handleSearch(e) {
+  async function handleSearch(e) {
     e.preventDefault();
-    const query = searchQuery.trim().toUpperCase();
+    const query = searchQuery.trim();
     if (!query) return;
 
-    const found = SAMPLE_SHIPMENTS.find((s) => s.id.toUpperCase().includes(query));
+    // 1. First check if it matches a real live order in the database
+    try {
+      const liveRes = await orderService.trackOrder(query);
+      if (liveRes?.data?.id) {
+        navigate(`/orders/${liveRes.data.id}`);
+        return;
+      }
+    } catch (err) {
+      // Not in live DB, check sample shipments
+    }
+
+    // 2. Fall back to sample shipments
+    const found = SAMPLE_SHIPMENTS.find((s) => s.id.toUpperCase().includes(query.toUpperCase()));
     if (found) {
       setActiveTrackingId(found.id);
-      setNotification(`Tracking loaded for shipment ${found.id}`);
+      setNotification(`Tracking loaded for sample shipment ${found.id}`);
     } else {
-      setActiveTrackingId(query);
-      setNotification(`Searching logistics network for "${query}"...`);
+      setNotification(`No consignment found matching '${query}'. Please check the tracking number.`);
     }
   }
 
@@ -782,6 +821,116 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {/* Live Booked Deliveries Section */}
+            <Card
+              title="Your Booked Consignments"
+              subtitle="Real orders created in your TrackFlow account"
+              action={
+                <Link to="/orders/new">
+                  <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
+                    + New Booking
+                  </Button>
+                </Link>
+              }
+              style={{ marginBottom: 28 }}
+            >
+              {loadingOrders ? (
+                <div style={{ padding: "24px 0", textAlign: "center", color: "var(--color-slate-500)" }}>
+                  <div className="btn-spinner" style={{ width: 24, height: 24, margin: "0 auto 8px" }} />
+                  <span>Loading your booked orders...</span>
+                </div>
+              ) : myOrders.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {myOrders.map((ord) => (
+                    <div
+                      key={ord.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "16px 20px",
+                        backgroundColor: "#f8fafc",
+                        border: "1px solid var(--border-color)",
+                        borderRadius: "var(--radius-md)",
+                        flexWrap: "wrap",
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                        <div
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: "50%",
+                            backgroundColor: "var(--color-primary-light)",
+                            color: "var(--color-primary)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <PackageIcon size={18} />
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                            <span
+                              style={{
+                                fontFamily: "var(--font-mono, monospace)",
+                                fontWeight: 800,
+                                fontSize: "1rem",
+                                color: "var(--color-slate-900)",
+                              }}
+                            >
+                              {ord.trackingNumber}
+                            </span>
+                            <Badge
+                              variant={
+                                ord.status === "DELIVERED"
+                                  ? "delivered"
+                                  : ord.status === "CANCELLED"
+                                  ? "brand"
+                                  : "pending"
+                              }
+                              dot={ord.status !== "CANCELLED"}
+                            >
+                              {ord.status}
+                            </Badge>
+                          </div>
+                          <div style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 4 }}>
+                            From <strong>{ord.pickupLocation}</strong> ➔ To <strong>{ord.dropoffLocation}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <Link to={`/orders/${ord.id}`}>
+                          <Button variant="outline" size="sm">
+                            View Details ➔
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: "center", padding: "32px 16px" }}>
+                  <PackageIcon size={36} style={{ color: "var(--color-slate-300)", margin: "0 auto 10px" }} />
+                  <div style={{ fontWeight: 700, color: "var(--color-slate-700)" }}>
+                    No orders booked yet
+                  </div>
+                  <p style={{ fontSize: "0.875rem", color: "var(--color-slate-500)", marginTop: 4, marginBottom: 16 }}>
+                    Book your first parcel pickup and delivery in under 1 minute.
+                  </p>
+                  <Link to="/orders/new">
+                    <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
+                      Book Your First Order
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </Card>
 
             {/* Active Shipment Milestone Stepper */}
             <section className="tracking-timeline-card">

@@ -46,6 +46,12 @@ export default function Navbar() {
         <div className="nav-user-controls">
           {isAuthenticated && (
             <>
+              <Link to="/orders/new" style={{ textDecoration: "none" }}>
+                <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
+                  + New Order
+                </Button>
+              </Link>
+
               <div className="user-profile-chip">
                 <div className="user-avatar-initial">
                   {getInitials(user?.name || user?.fullName || user?.email)}

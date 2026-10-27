@@ -1,0 +1,202 @@
+{
+  "info": {
+    "name": "TrackFlow - Package Tracking System API",
+    "_postman_id": "trackflow-api-collection-v1",
+    "description": "API collection for TrackFlow package tracking system. Includes Phase 1 Auth (Member 1) and Order Creation & Details (Member 2).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "trackingNumber",
+      "value": "BST-1074-ACB0",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication (Member 1)",
+      "item": [
+        {
+          "name": "Feature #1 - User Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Ahmed Merchant\",\n  \"email\": \"ahmed.merchant@example.com\",\n  \"phone\": \"01012345678\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Feature #2 - User Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.token) {",
+                  "    pm.collectionVariables.set('token', response.data.token);",
+                  "    console.log('Token captured to collection variable');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"customer@trackflow.com\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Orders (Member 2)",
+      "item": [
+        {
+          "name": "Feature #4 - Create Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.id) {",
+                  "    pm.collectionVariables.set('orderId', response.data.id);",
+                  "    pm.collectionVariables.set('trackingNumber', response.data.trackingNumber);",
+                  "    console.log('Captured Order: ' + response.data.trackingNumber);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupLocation\": \"14 Abbas El Akkad, Nasr City, Cairo\",\n  \"dropoffLocation\": \"Villa 22, Road 9, Maadi, Cairo\",\n  \"packageDetails\": \"2x Cotton Shirts, Fragile Box, COD: EGP 450\",\n  \"deliveryTime\": \"2026-11-05T15:30:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Feature #4 - Get Customer Bookings (My Orders)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/my-orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "my-orders"]
+            }
+          }
+        },
+        {
+          "name": "Feature #6 - Track Order by Tracking Number",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/track/{{trackingNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "track", "{{trackingNumber}}"]
+            }
+          }
+        },
+        {
+          "name": "Feature #6 - Get Order Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Feature #6 - Cancel Pending Order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}/cancel",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}", "cancel"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
