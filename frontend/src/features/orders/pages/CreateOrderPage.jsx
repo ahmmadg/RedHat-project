@@ -146,10 +146,10 @@ export default function CreateOrderPage() {
         <div style={{ marginBottom: 28 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
             <Badge variant="brand" dot={false}>
-              Feature #3 & #4
+              Express Booking
             </Badge>
             <span style={{ fontSize: "0.875rem", color: "var(--color-slate-500)" }}>
-              Express Consignment Booking
+              Door-to-Door Delivery
             </span>
           </div>
           <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-slate-900)" }}>
