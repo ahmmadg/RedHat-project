@@ -1,35 +1,23 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Navbar from "../../../components/layout/Navbar";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import Badge from "../../../components/ui/Badge";
 import orderService from "../services/order-service";
-import {
-  PackageIcon,
-  MapPinIcon,
-  ClockIcon,
-  TruckIcon,
-  UserIcon,
-  CheckCircleIcon,
-  AlertCircleIcon,
-  ArrowRightIcon,
-  ShieldIcon,
-} from "../../../components/ui/Icons";
+import "../orders.css";
+
+const STATUS_STEPS = ["PENDING", "PICKED_UP", "IN_TRANSIT", "DELIVERED"];
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const location = useLocation();
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [error, setError] = useState("");
-  const [successMessage, setSuccessMessage] = useState(
-    location.state?.successMessage || ""
-  );
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -47,7 +35,7 @@ export default function OrderDetailsPage() {
           setError(
             err.response?.data?.message ||
               err.message ||
-              "Failed to load order details."
+              "Could not load shipment details."
           );
         }
       } finally {
@@ -57,63 +45,54 @@ export default function OrderDetailsPage() {
       }
     }
 
-    if (id) {
-      fetchOrder();
-    }
+    if (id) fetchOrder();
 
     return () => {
       isMounted = false;
     };
   }, [id]);
 
-  async function handleCancelOrder() {
+  async function handleCancel() {
     setCancelling(true);
     setError("");
     try {
       const response = await orderService.cancelOrder(id);
       setOrder(response.data);
-      setShowCancelConfirm(false);
-      setSuccessMessage("Order has been successfully cancelled.");
+      setShowCancelPrompt(false);
     } catch (err) {
       setError(
         err.response?.data?.message ||
           err.message ||
-          "Failed to cancel order. Please refresh and try again."
+          "Could not cancel order. Please refresh and try again."
       );
-      setShowCancelConfirm(false);
+      setShowCancelPrompt(false);
     } finally {
       setCancelling(false);
     }
   }
 
-  function getStatusVariant(status) {
-    switch (status) {
-      case "DELIVERED":
-        return "delivered";
-      case "IN_TRANSIT":
-      case "PICKED_UP":
-        return "in-transit";
-      case "PENDING":
-        return "pending";
-      case "CANCELLED":
-        return "brand";
-      default:
-        return "role";
-    }
+  function handleCopyTracking() {
+    if (!order?.trackingNumber) return;
+    navigator.clipboard.writeText(order.trackingNumber);
+    setCopySuccess(true);
+    setTimeout(() => setCopySuccess(false), 2000);
   }
 
   function formatDate(isoString) {
     if (!isoString) return "N/A";
-    const date = new Date(isoString);
-    if (isNaN(date.getTime())) return isoString;
-    return date.toLocaleString("en-US", {
-      year: "numeric",
+    const d = new Date(isoString);
+    if (isNaN(d.getTime())) return isoString;
+    return d.toLocaleString("en-US", {
       month: "short",
       day: "numeric",
+      year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
   }
+
+  const currentStepIndex = order ? STATUS_STEPS.indexOf(order.status) : 0;
+  const isCancelled = order?.status === "CANCELLED";
 
   return (
     <div className="dashboard-layout">
@@ -121,71 +100,30 @@ export default function OrderDetailsPage() {
 
       <main className="dashboard-container">
         {/* Navigation Breadcrumb */}
-        <div style={{ marginBottom: 20 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              fontSize: "0.875rem",
-              color: "var(--color-slate-500)",
-            }}
-          >
-            <Link to="/dashboard" style={{ color: "var(--color-slate-600)", fontWeight: 500 }}>
-              Dashboard
-            </Link>
-            <span>/</span>
-            <span style={{ color: "var(--color-slate-600)" }}>Orders</span>
-            <span>/</span>
-            <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>
-              {order ? order.trackingNumber : "Order Details"}
-            </span>
-          </div>
+        <div style={{ marginBottom: 16, fontSize: "0.875rem", color: "#64748b" }}>
+          <Link to="/dashboard" style={{ color: "#475569", fontWeight: 500, textDecoration: "none" }}>
+            Dashboard
+          </Link>
+          <span style={{ margin: "0 8px" }}>/</span>
+          <span style={{ color: "#0f172a", fontWeight: 600 }}>Shipment Details</span>
         </div>
 
-        {/* Success Banner */}
-        {successMessage && (
-          <div
-            className="form-alert form-alert-success"
-            style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
-            role="status"
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <CheckCircleIcon size={20} />
-              <span>{successMessage}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSuccessMessage("")}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", fontWeight: 700 }}
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        {/* Error Banner */}
         {error && (
-          <div className="form-alert form-alert-error" role="alert">
-            <AlertCircleIcon size={20} />
-            <span>{error}</span>
+          <div className="form-alert form-alert-error" role="alert" style={{ marginBottom: 20 }}>
+            <span>⚠️ {error}</span>
           </div>
         )}
 
-        {/* Loading State */}
         {loading && (
-          <div style={{ padding: "60px 0", textAlign: "center" }}>
-            <div className="btn-spinner" style={{ width: 36, height: 36, margin: "0 auto 16px" }} />
-            <p style={{ color: "var(--color-slate-500)", fontSize: "1rem" }}>
-              Retrieving live consignment data from database...
-            </p>
+          <div style={{ padding: "60px 0", textAlign: "center", color: "#64748b" }}>
+            <div className="btn-spinner" style={{ width: 28, height: 28, margin: "0 auto 12px" }} />
+            <p>Loading shipment record...</p>
           </div>
         )}
 
-        {/* Order Details Body */}
         {!loading && order && (
           <>
-            {/* Header with Tracking ID, Status, and Cancel Action */}
+            {/* Top Shipment Bar */}
             <div
               style={{
                 display: "flex",
@@ -193,347 +131,274 @@ export default function OrderDetailsPage() {
                 alignItems: "flex-start",
                 flexWrap: "wrap",
                 gap: 16,
-                marginBottom: 28,
+                marginBottom: 24,
               }}
             >
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-                  <span
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <h1
                     style={{
                       fontFamily: "var(--font-mono, monospace)",
                       fontSize: "1.75rem",
-                      fontWeight: 800,
-                      color: "var(--color-slate-900)",
+                      fontWeight: 700,
+                      color: "#0f172a",
+                      margin: 0,
                     }}
                   >
                     {order.trackingNumber}
-                  </span>
-                  <Badge variant={getStatusVariant(order.status)} dot={true}>
+                  </h1>
+
+                  <button
+                    type="button"
+                    className="copy-tracking-btn"
+                    onClick={handleCopyTracking}
+                    title="Copy tracking number"
+                  >
+                    {copySuccess ? "✓ Copied" : "Copy #"}
+                  </button>
+
+                  <Badge
+                    variant={isCancelled ? "brand" : order.status === "DELIVERED" ? "delivered" : "pending"}
+                    dot={!isCancelled}
+                  >
                     {order.status}
                   </Badge>
                 </div>
-                <p style={{ color: "var(--color-slate-500)", fontSize: "0.875rem" }}>
-                  Booked on <strong>{formatDate(order.createdAt)}</strong> • System Reference: <code>{order.id}</code>
+
+                <p style={{ color: "#64748b", fontSize: "0.875rem", margin: "6px 0 0 0" }}>
+                  Booked on {formatDate(order.createdAt)} • Ref: <code>{order.id.slice(0, 8)}...</code>
                 </p>
               </div>
 
-              {/* Cancel Action (Only when status is PENDING) */}
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                {order.status === "PENDING" && !showCancelConfirm && (
+              {/* Actions: Print Waybill & Cancel Order */}
+              <div className="order-details-actions" style={{ display: "flex", gap: 10 }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.print()}
+                  title="Print Waybill / Shipping Label"
+                >
+                  Print Label
+                </Button>
+
+                {order.status === "PENDING" && !showCancelPrompt && (
                   <Button
                     type="button"
                     variant="outline"
-                    size="md"
-                    onClick={() => setShowCancelConfirm(true)}
-                    style={{ borderColor: "#ef4444", color: "#dc2626" }}
+                    size="sm"
+                    onClick={() => setShowCancelPrompt(true)}
+                    style={{ color: "#dc2626", borderColor: "#fca5a5" }}
                   >
                     Cancel Order
                   </Button>
                 )}
-
-                <Link to="/orders/new">
-                  <Button variant="primary" size="md" icon={<PackageIcon size={18} />}>
-                    + Book Another Order
-                  </Button>
-                </Link>
               </div>
             </div>
 
-            {/* Cancel Confirmation Prompt */}
-            {showCancelConfirm && (
+            {/* Cancel Confirmation Dialog */}
+            {showCancelPrompt && (
               <div
                 style={{
                   backgroundColor: "#fef2f2",
-                  border: "1.5px solid #fecaca",
-                  borderRadius: "var(--radius-lg)",
-                  padding: "20px 24px",
-                  marginBottom: 28,
+                  border: "1px solid #fecaca",
+                  borderRadius: "8px",
+                  padding: "16px 20px",
+                  marginBottom: 24,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#991b1b", fontWeight: 700, fontSize: "1rem", marginBottom: 6 }}>
-                  <AlertCircleIcon size={20} />
-                  <span>Confirm Order Cancellation</span>
+                <div style={{ fontWeight: 600, color: "#991b1b", marginBottom: 4 }}>
+                  Confirm Order Cancellation
                 </div>
-                <p style={{ color: "#7f1d1d", fontSize: "0.875rem", marginBottom: 16 }}>
-                  Are you sure you want to cancel order <strong>{order.trackingNumber}</strong>? Once cancelled, this consignment cannot be dispatched.
+                <p style={{ fontSize: "0.875rem", color: "#7f1d1d", margin: "0 0 12px 0" }}>
+                  Are you sure you want to cancel shipment <strong>{order.trackingNumber}</strong>? Once cancelled, it cannot be dispatched.
                 </p>
                 <div style={{ display: "flex", gap: 10 }}>
                   <Button
                     variant="primary"
                     size="sm"
                     loading={cancelling}
-                    onClick={handleCancelOrder}
+                    onClick={handleCancel}
                     style={{ backgroundColor: "#dc2626" }}
                   >
-                    Yes, Cancel This Order
+                    Yes, Cancel Shipment
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={cancelling}
-                    onClick={() => setShowCancelConfirm(false)}
+                    onClick={() => setShowCancelPrompt(false)}
                   >
-                    Keep Order Active
+                    Keep Order
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Grid: Order Specifications & Courier Card */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1.2fr)",
-                gap: 24,
-                marginBottom: 28,
-              }}
-            >
-              {/* Left Column: Shipment Details */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                <Card title="Shipment Specifications" subtitle="Full pickup, delivery, and package manifests">
-                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                    {/* Pickup */}
-                    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: "50%",
-                          backgroundColor: "var(--color-primary-light)",
-                          color: "var(--color-primary)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <MapPinIcon size={18} />
+            {/* Status Stepper (Human UI) */}
+            <Card style={{ marginBottom: 24, padding: "20px 24px" }}>
+              {isCancelled ? (
+                <div
+                  style={{
+                    backgroundColor: "#fef2f2",
+                    color: "#991b1b",
+                    padding: "12px 16px",
+                    borderRadius: "6px",
+                    fontSize: "0.875rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  ✕ This shipment was cancelled and will not be dispatched.
+                </div>
+              ) : (
+                <div className="order-progress-stepper">
+                  <div className="stepper-line-bg" />
+                  {STATUS_STEPS.map((step, idx) => {
+                    const isCompleted = idx < currentStepIndex;
+                    const isActive = idx === currentStepIndex;
+                    const circleClass = isCompleted ? "completed" : isActive ? "active" : "";
+                    const labelClass = isActive ? "active" : "";
+
+                    return (
+                      <div key={step} className="stepper-step">
+                        <div className={`stepper-circle ${circleClass}`.trim()}>
+                          {isCompleted ? "✓" : idx + 1}
+                        </div>
+                        <span className={`stepper-label ${labelClass}`.trim()}>
+                          {step.replace("_", " ")}
+                        </span>
                       </div>
-                      <div>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-slate-400)", textTransform: "uppercase" }}>
-                          Pickup Location (Sender)
-                        </div>
-                        <div style={{ fontSize: "1rem", fontWeight: 600, color: "var(--color-slate-900)", marginTop: 2 }}>
-                          {order.pickupLocation}
-                        </div>
-                        <div style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 2 }}>
-                          Sender: {order.customer?.fullName || "Account Holder"} {order.customer?.phone && `• Tel: ${order.customer.phone}`}
-                        </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
+
+            {/* Two-Column Specification Manifest */}
+            <div className="order-layout-grid">
+              {/* Left Column: Shipment Specs */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                <Card title="Shipment Specifications">
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                        Pickup Location (Sender)
+                      </div>
+                      <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#0f172a", marginTop: 2 }}>
+                        {order.pickupLocation}
+                      </div>
+                      <div style={{ fontSize: "0.8125rem", color: "#64748b", marginTop: 2 }}>
+                        Contact: {order.customer?.fullName || "Account Holder"} {order.customer?.email && `(${order.customer.email})`}
                       </div>
                     </div>
 
-                    <div style={{ height: 1, backgroundColor: "var(--border-color)", margin: "0 0 0 50px" }} />
+                    <div style={{ height: 1, backgroundColor: "#f1f5f9" }} />
 
-                    {/* Dropoff */}
-                    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: "50%",
-                          backgroundColor: "#d1fae5",
-                          color: "#059669",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <MapPinIcon size={18} />
+                    <div>
+                      <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                        Drop-off Location (Recipient)
                       </div>
-                      <div>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-slate-400)", textTransform: "uppercase" }}>
-                          Drop-off Location (Customer Destination)
-                        </div>
-                        <div style={{ fontSize: "1rem", fontWeight: 600, color: "var(--color-slate-900)", marginTop: 2 }}>
-                          {order.dropoffLocation}
-                        </div>
+                      <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#0f172a", marginTop: 2 }}>
+                        {order.dropoffLocation}
                       </div>
                     </div>
 
-                    <div style={{ height: 1, backgroundColor: "var(--border-color)", margin: "0 0 0 50px" }} />
+                    <div style={{ height: 1, backgroundColor: "#f1f5f9" }} />
 
-                    {/* Package Details */}
-                    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: "50%",
-                          backgroundColor: "#eff6ff",
-                          color: "#2563eb",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <PackageIcon size={18} />
+                    <div>
+                      <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                        Package Contents & Notes
                       </div>
-                      <div>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-slate-400)", textTransform: "uppercase" }}>
-                          Package Details & Contents
-                        </div>
-                        <div style={{ fontSize: "0.9375rem", color: "var(--color-slate-800)", marginTop: 4, whiteSpace: "pre-wrap" }}>
-                          {order.packageDetails}
-                        </div>
+                      <div style={{ fontSize: "0.875rem", color: "#334155", marginTop: 4, whiteSpace: "pre-wrap" }}>
+                        {order.packageDetails}
                       </div>
                     </div>
 
-                    <div style={{ height: 1, backgroundColor: "var(--border-color)", margin: "0 0 0 50px" }} />
+                    <div style={{ height: 1, backgroundColor: "#f1f5f9" }} />
 
-                    {/* Delivery Time */}
-                    <div style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: "50%",
-                          backgroundColor: "#fef3c7",
-                          color: "#d97706",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                        }}
-                      >
-                        <ClockIcon size={18} />
+                    <div>
+                      <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                        Requested Delivery Time
                       </div>
-                      <div>
-                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--color-slate-400)", textTransform: "uppercase" }}>
-                          Requested Delivery Window
-                        </div>
-                        <div style={{ fontSize: "1rem", fontWeight: 600, color: "var(--color-slate-900)", marginTop: 2 }}>
-                          {formatDate(order.deliveryTime)}
-                        </div>
+                      <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#0f172a", marginTop: 2 }}>
+                        {formatDate(order.deliveryTime)}
                       </div>
                     </div>
                   </div>
                 </Card>
               </div>
 
-              {/* Right Column: Courier Information & Status History */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-                {/* Courier Information Card */}
-                <Card
-                  title="Courier Information"
-                  subtitle="Assigned delivery personnel for this consignment"
-                >
+              {/* Right Column: Courier & Milestone Trail */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {/* Courier Card */}
+                <Card title="Courier Assignment">
                   {order.courier ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                        <div
-                          className="user-avatar-initial"
-                          style={{ width: 44, height: 44, fontSize: "1.1rem" }}
-                        >
-                          {order.courier.fullName ? order.courier.fullName[0].toUpperCase() : "C"}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-slate-900)" }}>
-                            {order.courier.fullName}
-                          </div>
-                          <Badge variant="in-transit" dot={true}>
-                            Assigned Courier
-                          </Badge>
-                        </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: "0.875rem" }}>
+                      <div style={{ fontWeight: 600, color: "#0f172a" }}>
+                        {order.courier.fullName}
                       </div>
-
-                      <div style={{ fontSize: "0.875rem", color: "var(--color-slate-600)", display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
-                        <div>
-                          <strong>Phone:</strong> {order.courier.phone || "Not provided"}
-                        </div>
-                        <div>
-                          <strong>Email:</strong> {order.courier.email}
-                        </div>
-                        <div>
-                          <strong>Response:</strong> {order.courierResponse}
-                        </div>
+                      <div style={{ color: "#64748b" }}>
+                        Phone: {order.courier.phone || "Not available"}
+                      </div>
+                      <div style={{ color: "#64748b" }}>
+                        Email: {order.courier.email}
                       </div>
                     </div>
                   ) : (
                     <div
                       style={{
-                        padding: "24px 16px",
+                        padding: "16px",
                         textAlign: "center",
-                        backgroundColor: "var(--bg-surface-muted)",
-                        borderRadius: "var(--radius-md)",
-                        border: "1px dashed var(--border-color)",
+                        backgroundColor: "#f8fafc",
+                        borderRadius: "8px",
+                        border: "1px dashed #cbd5e1",
                       }}
                     >
-                      <TruckIcon size={32} style={{ color: "var(--color-slate-400)", margin: "0 auto 10px" }} />
-                      <div style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--color-slate-700)" }}>
+                      <div style={{ fontWeight: 600, fontSize: "0.875rem", color: "#475569" }}>
                         Awaiting Courier Assignment
                       </div>
-                      <p style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 4 }}>
-                        Your order is in the dispatch queue. A courier will be assigned shortly.
+                      <p style={{ fontSize: "0.8125rem", color: "#64748b", margin: "4px 0 0 0" }}>
+                        Your order is queued for hub pickup.
                       </p>
                     </div>
                   )}
                 </Card>
 
-                {/* Status Change History Timeline */}
-                <Card
-                  title="Consignment Milestones"
-                  subtitle="Audit trail of recorded status events"
-                >
+                {/* Tracking Milestones */}
+                <Card title="Activity History">
                   {order.statusHistory && order.statusHistory.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                      {order.statusHistory.map((history, idx) => (
-                        <div key={history.id || idx} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                          <div
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {order.statusHistory.map((item, idx) => (
+                        <div key={item.id || idx} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                          <span
                             style={{
-                              width: 24,
-                              height: 24,
+                              width: 8,
+                              height: 8,
                               borderRadius: "50%",
-                              backgroundColor:
-                                history.status === "DELIVERED"
-                                  ? "#d1fae5"
-                                  : history.status === "CANCELLED"
-                                  ? "#fee2e2"
-                                  : "var(--color-primary-light)",
-                              color:
-                                history.status === "DELIVERED"
-                                  ? "#059669"
-                                  : history.status === "CANCELLED"
-                                  ? "#dc2626"
-                                  : "var(--color-primary)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: "0.75rem",
-                              fontWeight: 700,
+                              backgroundColor: item.status === "CANCELLED" ? "#dc2626" : "#e31826",
+                              marginTop: 5,
                               flexShrink: 0,
-                              marginTop: 2,
                             }}
-                          >
-                            ●
-                          </div>
+                          />
                           <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontWeight: 700, fontSize: "0.875rem" }}>
-                                {history.status}
-                              </span>
-                              <span style={{ fontSize: "0.75rem", color: "var(--color-slate-400)" }}>
-                                {formatDate(history.createdAt)}
-                              </span>
+                            <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#0f172a" }}>
+                              {item.status}
                             </div>
-                            {history.note && (
-                              <p style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 2 }}>
-                                {history.note}
-                              </p>
+                            {item.note && (
+                              <div style={{ fontSize: "0.75rem", color: "#64748b", marginTop: 2 }}>
+                                {item.note}
+                              </div>
                             )}
-                            {history.changedBy && (
-                              <p style={{ fontSize: "0.75rem", color: "var(--color-slate-400)", marginTop: 2 }}>
-                                Updated by: {history.changedBy.fullName} ({history.changedBy.role})
-                              </p>
-                            )}
+                            <div style={{ fontSize: "0.6875rem", color: "#94a3b8", marginTop: 2 }}>
+                              {formatDate(item.createdAt)}
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)" }}>
-                      Initial order creation recorded.
+                    <p style={{ fontSize: "0.8125rem", color: "#64748b", margin: 0 }}>
+                      Initial booking logged.
                     </p>
                   )}
                 </Card>

@@ -4,93 +4,86 @@ import Navbar from "../../../components/layout/Navbar";
 import Input from "../../../components/ui/Input";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
-import Badge from "../../../components/ui/Badge";
 import orderService from "../services/order-service";
-import {
-  PackageIcon,
-  MapPinIcon,
-  ClockIcon,
-  AlertCircleIcon,
-  ArrowRightIcon,
-  CheckCircleIcon,
-  TruckIcon,
-  ShieldIcon,
-} from "../../../components/ui/Icons";
+import "../orders.css";
 
-function getTomorrowNoon() {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  d.setHours(12, 0, 0, 0);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+function getDefaultDeliveryTime() {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(14, 0, 0, 0);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${tomorrow.getFullYear()}-${pad(tomorrow.getMonth() + 1)}-${pad(tomorrow.getDate())}T${pad(tomorrow.getHours())}:${pad(tomorrow.getMinutes())}`;
 }
 
 export default function CreateOrderPage() {
   const navigate = useNavigate();
 
+  // Form State
   const [pickupLocation, setPickupLocation] = useState("");
   const [dropoffLocation, setDropoffLocation] = useState("");
   const [packageDetails, setPackageDetails] = useState("");
-  const [deliveryTime, setDeliveryTime] = useState(getTomorrowNoon);
+  const [deliveryTime, setDeliveryTime] = useState(getDefaultDeliveryTime);
 
+  // Validation & UI State
   const [errors, setErrors] = useState({});
-  const [alertError, setAlertError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dynamic order summary calculations (realistic logistics fee model)
+  const estimatedWeight = packageDetails ? Math.min(10, Math.max(1, Math.round(packageDetails.length / 25))) : 1;
+  const baseShippingFee = 45; // EGP standard intra-city base fee
+  const weightFee = (estimatedWeight - 1) * 10;
+  const totalEstimatedFee = baseShippingFee + weightFee;
 
   function validate() {
-    const errs = {};
+    const nextErrors = {};
+
     if (!pickupLocation.trim()) {
-      errs.pickupLocation = "Pickup location is required.";
+      nextErrors.pickupLocation = "Pickup address is required.";
     } else if (pickupLocation.trim().length < 3) {
-      errs.pickupLocation = "Pickup location must be at least 3 characters.";
+      nextErrors.pickupLocation = "Please enter a valid address (min 3 characters).";
     }
 
     if (!dropoffLocation.trim()) {
-      errs.dropoffLocation = "Drop-off location is required.";
+      nextErrors.dropoffLocation = "Drop-off address is required.";
     } else if (dropoffLocation.trim().length < 3) {
-      errs.dropoffLocation = "Drop-off location must be at least 3 characters.";
+      nextErrors.dropoffLocation = "Please enter a valid address (min 3 characters).";
     }
 
     if (!packageDetails.trim()) {
-      errs.packageDetails = "Package details are required.";
+      nextErrors.packageDetails = "Please specify package contents.";
     } else if (packageDetails.trim().length < 3) {
-      errs.packageDetails = "Package details must be at least 3 characters.";
+      nextErrors.packageDetails = "Package description must be at least 3 characters.";
     }
 
     if (!deliveryTime) {
-      errs.deliveryTime = "Requested delivery date and time is required.";
+      nextErrors.deliveryTime = "Requested delivery time is required.";
     } else {
-      const selected = new Date(deliveryTime);
-      if (isNaN(selected.getTime())) {
-        errs.deliveryTime = "Please select a valid date and time.";
+      const parsed = new Date(deliveryTime);
+      if (isNaN(parsed.getTime())) {
+        nextErrors.deliveryTime = "Please enter a valid date and time.";
       }
     }
 
-    setErrors(errs);
+    setErrors(nextErrors);
 
-    if (Object.keys(errs).length > 0) {
-      setAlertError("Please complete all required fields highlighted below before submitting.");
+    if (Object.keys(nextErrors).length > 0) {
+      setFormError("Please check the highlighted fields below.");
       window.scrollTo({ top: 0, behavior: "smooth" });
       return false;
     }
 
-    setAlertError("");
+    setFormError("");
     return true;
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setAlertError("");
+    setFormError("");
 
-    if (!validate()) {
-      return;
-    }
+    if (!validate()) return;
 
-    setLoading(true);
+    setIsSubmitting(true);
 
     try {
       const payload = {
@@ -101,28 +94,28 @@ export default function CreateOrderPage() {
       };
 
       const result = await orderService.createOrder(payload);
-      const createdOrder = result.data;
+      const created = result.data;
 
-      if (!createdOrder?.id) {
-        throw new Error("Order creation succeeded but response was missing order ID.");
+      if (!created?.id) {
+        throw new Error("Order was created but no order ID was returned.");
       }
 
-      navigate(`/orders/${createdOrder.id}`, {
+      navigate(`/orders/${created.id}`, {
         state: {
-          successMessage: `Order created successfully! Tracking Number: ${createdOrder.trackingNumber}`,
+          successMessage: `Shipment booked successfully. Tracking: ${created.trackingNumber}`,
         },
       });
     } catch (err) {
       const message =
         err.response?.data?.message ||
         (err.response?.data?.errors &&
-          err.response.data.errors.map((e) => e.message).join(", ")) ||
+          err.response.data.errors.map((item) => item.message).join(", ")) ||
         err.message ||
-        "Failed to create order. Please check that the backend server is running.";
-      setAlertError(message);
+        "Could not submit order. Please verify the backend is running.";
+      setFormError(message);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   }
 
@@ -132,161 +125,144 @@ export default function CreateOrderPage() {
 
       <main className="dashboard-container">
         {/* Navigation Breadcrumb */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.875rem", color: "var(--color-slate-500)" }}>
-            <Link to="/dashboard" style={{ color: "var(--color-slate-600)", fontWeight: 500 }}>
-              Dashboard
-            </Link>
-            <span>/</span>
-            <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>Create New Order</span>
-          </div>
+        <div style={{ marginBottom: 16, fontSize: "0.875rem", color: "#64748b" }}>
+          <Link to="/dashboard" style={{ color: "#475569", fontWeight: 500, textDecoration: "none" }}>
+            Dashboard
+          </Link>
+          <span style={{ margin: "0 8px" }}>/</span>
+          <span style={{ color: "#0f172a", fontWeight: 600 }}>Create Order</span>
         </div>
 
-        {/* Page Title */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-            <Badge variant="brand" dot={false}>
-              Express Booking
-            </Badge>
-            <span style={{ fontSize: "0.875rem", color: "var(--color-slate-500)" }}>
-              Door-to-Door Delivery
-            </span>
-          </div>
-          <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-slate-900)" }}>
-            Book a Package Delivery
-          </h1>
-          <p style={{ color: "var(--color-slate-500)", fontSize: "0.9375rem" }}>
-            Enter your pickup, drop-off, and parcel details. A courier will be assigned to collect and deliver your package.
+        {/* Page Header */}
+        <div className="order-page-header">
+          <h1 className="order-page-title">New Shipment Booking</h1>
+          <p className="order-page-desc">
+            Fill in the pickup, destination, and package details to dispatch a courier.
           </p>
         </div>
 
-        {/* Prominent Error Alert */}
-        {alertError && (
-          <div className="form-alert form-alert-error" role="alert" style={{ marginBottom: 24 }}>
-            <AlertCircleIcon size={20} />
-            <span>{alertError}</span>
+        {/* Form Error Alert */}
+        {formError && (
+          <div className="form-alert form-alert-error" role="alert" style={{ marginBottom: 20 }}>
+            <span>⚠️ {formError}</span>
           </div>
         )}
 
-        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", gap: 28, alignItems: "start" }}>
-          {/* Main Booking Form */}
-          <Card
-            title="Consignment Details"
-            subtitle="Please complete all required fields below."
-          >
+        <div className="order-layout-grid">
+          {/* Main Form */}
+          <Card>
             <form onSubmit={handleSubmit} noValidate>
-              {/* Pickup Location */}
-              <Input
-                id="pickupLocation"
-                label="Pickup Location (Merchant / Sender Address)"
-                type="text"
-                value={pickupLocation}
-                onChange={(e) => {
-                  setPickupLocation(e.target.value);
-                  if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: "" }));
-                }}
-                placeholder="e.g. 14 Abbas El Akkad, Nasr City, Cairo"
-                icon={<MapPinIcon size={18} />}
-                required
-                error={errors.pickupLocation}
-                hint="Specify street name, building number, and landmark."
-              />
+              {/* Section 1: Pickup Location */}
+              <div className="order-form-section">
+                <div className="order-section-title">
+                  <span>1. Pickup Details (Sender)</span>
+                </div>
+                <Input
+                  id="pickupLocation"
+                  label="Pickup Address"
+                  type="text"
+                  value={pickupLocation}
+                  onChange={(e) => {
+                    setPickupLocation(e.target.value);
+                    if (errors.pickupLocation) setErrors((prev) => ({ ...prev, pickupLocation: "" }));
+                  }}
+                  placeholder="e.g. 14 Abbas El Akkad, Nasr City, Cairo"
+                  required
+                  error={errors.pickupLocation}
+                  hint="Building number, street, and area for courier pickup."
+                />
+              </div>
 
-              {/* Drop-off Location */}
-              <Input
-                id="dropoffLocation"
-                label="Drop-off Location (Customer Destination)"
-                type="text"
-                value={dropoffLocation}
-                onChange={(e) => {
-                  setDropoffLocation(e.target.value);
-                  if (errors.dropoffLocation) setErrors((prev) => ({ ...prev, dropoffLocation: "" }));
-                }}
-                placeholder="e.g. Villa 22, Road 9, Maadi, Cairo"
-                icon={<MapPinIcon size={18} />}
-                required
-                error={errors.dropoffLocation}
-                hint="Ensure customer recipient address is complete."
-              />
+              {/* Section 2: Drop-off Location */}
+              <div className="order-form-section">
+                <div className="order-section-title">
+                  <span>2. Delivery Destination (Recipient)</span>
+                </div>
+                <Input
+                  id="dropoffLocation"
+                  label="Drop-off Address"
+                  type="text"
+                  value={dropoffLocation}
+                  onChange={(e) => {
+                    setDropoffLocation(e.target.value);
+                    if (errors.dropoffLocation) setErrors((prev) => ({ ...prev, dropoffLocation: "" }));
+                  }}
+                  placeholder="e.g. Villa 22, Road 9, Maadi, Cairo"
+                  required
+                  error={errors.dropoffLocation}
+                  hint="Customer's delivery location."
+                />
+              </div>
 
-              {/* Package Details */}
-              <div className="form-group">
-                <label htmlFor="packageDetails" className="form-label">
-                  <span>
-                    Package Details & Contents{" "}
-                    <span style={{ color: "var(--color-primary)" }}>*</span>
-                  </span>
-                </label>
-                <div className="form-input-wrapper">
+              {/* Section 3: Package Details & Delivery Time */}
+              <div className="order-form-section">
+                <div className="order-section-title">
+                  <span>3. Package & Delivery Window</span>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="packageDetails" className="form-label">
+                    <span>
+                      Package Contents & Notes <span style={{ color: "var(--color-primary)" }}>*</span>
+                    </span>
+                  </label>
                   <textarea
                     id="packageDetails"
-                    rows={4}
-                    className="form-input has-icon"
+                    rows={3}
+                    className="form-input"
                     style={{
                       height: "auto",
-                      paddingTop: 12,
-                      paddingBottom: 12,
+                      padding: "10px 14px",
                       resize: "vertical",
                       fontFamily: "inherit",
-                      borderColor: errors.packageDetails ? "#ef4444" : undefined,
+                      borderColor: errors.packageDetails ? "#dc2626" : undefined,
                     }}
                     value={packageDetails}
                     onChange={(e) => {
                       setPackageDetails(e.target.value);
                       if (errors.packageDetails) setErrors((prev) => ({ ...prev, packageDetails: "" }));
                     }}
-                    placeholder="e.g. 2x Cotton T-shirts, Fragile glass container, Cash on Delivery: EGP 450"
+                    placeholder="e.g. 2x Shirts, Fragile glass, COD: EGP 450"
                     required
                   />
-                  <span
-                    className="form-input-icon"
-                    style={{ top: 14, alignItems: "flex-start" }}
-                  >
-                    <PackageIcon size={18} />
-                  </span>
+                  {errors.packageDetails ? (
+                    <p className="form-error-text">
+                      <span>{errors.packageDetails}</span>
+                    </p>
+                  ) : (
+                    <p className="form-hint">
+                      Describe the items and any special delivery or Cash on Delivery instructions.
+                    </p>
+                  )}
                 </div>
-                {errors.packageDetails ? (
-                  <p className="form-error-text">
-                    <AlertCircleIcon size={14} />
-                    <span>{errors.packageDetails}</span>
-                  </p>
-                ) : (
-                  <p className="form-hint">
-                    Describe items, approximate weight, and any fragile or cash-on-delivery instructions.
-                  </p>
-                )}
+
+                <Input
+                  id="deliveryTime"
+                  label="Requested Delivery Time"
+                  type="datetime-local"
+                  value={deliveryTime}
+                  onChange={(e) => {
+                    setDeliveryTime(e.target.value);
+                    if (errors.deliveryTime) setErrors((prev) => ({ ...prev, deliveryTime: "" }));
+                  }}
+                  required
+                  error={errors.deliveryTime}
+                  hint="Preferred arrival window."
+                />
               </div>
 
-              {/* Delivery Time */}
-              <Input
-                id="deliveryTime"
-                label="Requested Delivery Date & Time"
-                type="datetime-local"
-                value={deliveryTime}
-                onChange={(e) => {
-                  setDeliveryTime(e.target.value);
-                  if (errors.deliveryTime) setErrors((prev) => ({ ...prev, deliveryTime: "" }));
-                }}
-                icon={<ClockIcon size={18} />}
-                required
-                error={errors.deliveryTime}
-                hint="Expected arrival window for customer recipient."
-              />
-
-              {/* Submit Buttons */}
-              <div style={{ display: "flex", gap: 12, marginTop: 32, alignItems: "center" }}>
+              {/* Form Actions */}
+              <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
                 <Button
                   type="submit"
                   variant="primary"
-                  size="lg"
-                  loading={loading}
-                  icon={<ArrowRightIcon size={18} />}
+                  size="md"
+                  loading={isSubmitting}
                 >
-                  {loading ? "Creating & Dispatching..." : "Create & Dispatch Order"}
+                  {isSubmitting ? "Dispatching..." : "Confirm & Book Shipment"}
                 </Button>
-
-                <Link to="/dashboard">
-                  <Button type="button" variant="outline" size="lg">
+                <Link to="/dashboard" style={{ textDecoration: "none" }}>
+                  <Button type="button" variant="outline" size="md">
                     Cancel
                   </Button>
                 </Link>
@@ -294,104 +270,61 @@ export default function CreateOrderPage() {
             </form>
           </Card>
 
-          {/* Right Information & Policy Sidebar */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-            <Card title="How Order Booking Works">
-              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      backgroundColor: "var(--color-primary-light)",
-                      color: "var(--color-primary)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    1
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Order Submitted</div>
-                    <div style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 2 }}>
-                      A unique TrackFlow tracking number (`BST-XXXX-EG`) is instantly generated.
-                    </div>
-                  </div>
-                </div>
+          {/* Right Column: Real-time Live Shipment Summary */}
+          <aside className="order-summary-card">
+            <h3 className="order-summary-title">Shipment Summary</h3>
 
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      backgroundColor: "#fef3c7",
-                      color: "#b45309",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    2
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Courier Assignment</div>
-                    <div style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 2 }}>
-                      Our hub dispatcher or courier accepts the shipment for pickup.
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      backgroundColor: "#d1fae5",
-                      color: "#047857",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}
-                  >
-                    3
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>Live GPS Delivery</div>
-                    <div style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 2 }}>
-                      Track status updates through Picked Up, In Transit, and Delivered.
-                    </div>
+            {/* Live Route Preview */}
+            <div className="summary-route-row">
+              <div className="summary-route-point">
+                <span className="summary-point-dot pickup" />
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>PICKUP</div>
+                  <div style={{ fontWeight: 600, color: pickupLocation ? "#0f172a" : "#94a3b8" }}>
+                    {pickupLocation || "Address not entered"}
                   </div>
                 </div>
               </div>
-            </Card>
 
-            <Card title="Order Policies">
-              <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: "0.8125rem", color: "var(--color-slate-600)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <CheckCircleIcon size={16} style={{ color: "#10b981" }} />
-                  <span>Free cancellation while status is <strong>PENDING</strong></span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <ShieldIcon size={16} style={{ color: "var(--color-primary)" }} />
-                  <span>Full parcel insurance up to EGP 5,000</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <TruckIcon size={16} style={{ color: "#2563eb" }} />
-                  <span>Doorstep pickup within 2 hours of dispatch</span>
+              <div style={{ height: 12, borderLeft: "1.5px dashed #cbd5e1", marginLeft: 3 }} />
+
+              <div className="summary-route-point">
+                <span className="summary-point-dot dropoff" />
+                <div>
+                  <div style={{ fontSize: "0.75rem", color: "#64748b", fontWeight: 600 }}>DROP-OFF</div>
+                  <div style={{ fontWeight: 600, color: dropoffLocation ? "#0f172a" : "#94a3b8" }}>
+                    {dropoffLocation || "Address not entered"}
+                  </div>
                 </div>
               </div>
-            </Card>
-          </div>
+            </div>
+
+            {/* Live Pricing Breakdown */}
+            <div className="summary-fee-table">
+              <div className="summary-fee-row">
+                <span>Standard Delivery Fee</span>
+                <span>EGP {baseShippingFee}.00</span>
+              </div>
+              <div className="summary-fee-row">
+                <span>Estimated Weight</span>
+                <span>~{estimatedWeight} kg</span>
+              </div>
+              {weightFee > 0 && (
+                <div className="summary-fee-row">
+                  <span>Heavy Weight Surcharge</span>
+                  <span>EGP {weightFee}.00</span>
+                </div>
+              )}
+              <div className="summary-fee-row total">
+                <span>Total Estimated Cost</span>
+                <span>EGP {totalEstimatedFee}.00</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: "0.75rem", color: "#94a3b8", margin: "16px 0 0 0" }}>
+              Standard intra-city delivery. Orders can be cancelled for free while status is PENDING.
+            </p>
+          </aside>
         </div>
       </main>
     </div>

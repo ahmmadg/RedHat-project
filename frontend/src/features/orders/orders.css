@@ -1,0 +1,235 @@
+/* ==============================================================================
+ * MEMBER 2: ORDERS MODULE STYLES (Clean, Human, Bosta/Aramex-Inspired)
+ * ============================================================================== */
+
+/* Two-column responsive layout */
+.order-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.15fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .order-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Page Header */
+.order-page-header {
+  margin-bottom: 24px;
+}
+
+.order-page-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 6px 0 4px 0;
+}
+
+.order-page-desc {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Form Sections / Fieldsets */
+.order-form-section {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.order-form-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.order-section-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Live Summary Card (Right Column) */
+.order-summary-card {
+  position: sticky;
+  top: 90px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.order-summary-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.summary-route-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.summary-route-point {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.summary-point-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.summary-point-dot.pickup {
+  background-color: #e31826;
+}
+
+.summary-point-dot.dropoff {
+  background-color: #10b981;
+}
+
+.summary-fee-table {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+  font-size: 0.875rem;
+}
+
+.summary-fee-row {
+  display: flex;
+  justify-content: space-between;
+  color: #64748b;
+}
+
+.summary-fee-row.total {
+  padding-top: 10px;
+  border-top: 1px dashed #cbd5e1;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Order Details Stepper */
+.order-progress-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  margin: 20px 0 28px 0;
+  padding: 0 10px;
+}
+
+.stepper-line-bg {
+  position: absolute;
+  top: 15px;
+  left: 30px;
+  right: 30px;
+  height: 3px;
+  background-color: #e2e8f0;
+  z-index: 1;
+}
+
+.stepper-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.stepper-circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  border: 2px solid #cbd5e1;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  transition: all 0.2s ease;
+}
+
+.stepper-circle.active {
+  background-color: #e31826;
+  border-color: #e31826;
+  color: #ffffff;
+}
+
+.stepper-circle.completed {
+  background-color: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.stepper-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 6px;
+}
+
+.stepper-label.active {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Copy tracking chip */
+.copy-tracking-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  transition: all 0.15s ease;
+}
+
+.copy-tracking-btn:hover {
+  background-color: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Print only waybill style */
+@media print {
+  .app-navbar,
+  .copy-tracking-btn,
+  .btn,
+  .order-details-actions {
+    display: none !important;
+  }
+}
