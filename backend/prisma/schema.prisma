@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id                          String               @id
+  trackingNumber              String               @unique
+  pickupLocation              String
+  dropoffLocation             String
+  packageDetails              String
+  deliveryTime                DateTime
+  status                      OrderStatus          @default(PENDING)
+  courierResponse             CourierResponse      @default(PENDING)
+  createdAt                   DateTime             @default(now())
+  updatedAt                   DateTime
+  customerId                  String
+  courierId                   String?
+  User_Order_courierIdToUser  User?                @relation("Order_courierIdToUser", fields: [courierId], references: [id])
+  User_Order_customerIdToUser User                 @relation("Order_customerIdToUser", fields: [customerId], references: [id])
+  OrderStatusHistory          OrderStatusHistory[]
+}
+
+model OrderStatusHistory {
+  id          String      @id
+  status      OrderStatus
+  note        String?
+  createdAt   DateTime    @default(now())
+  orderId     String
+  changedById String?
+  User        User?       @relation(fields: [changedById], references: [id])
+  Order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id                           String               @id
+  fullName                     String
+  email                        String               @unique
+  phone                        String?
+  passwordHash                 String
+  role                         UserRole             @default(USER)
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime
+  Order_Order_courierIdToUser  Order[]              @relation("Order_courierIdToUser")
+  Order_Order_customerIdToUser Order[]              @relation("Order_customerIdToUser")
+  OrderStatusHistory           OrderStatusHistory[]
+}
+
+enum CourierResponse {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum OrderStatus {
+  PENDING
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
+enum UserRole {
+  USER
+  COURIER
+  ADMIN
+}
