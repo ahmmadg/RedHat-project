@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../../contexts/AuthContext";
 import Navbar from "../../../components/layout/Navbar";
 import Input from "../../../components/ui/Input";
 import Button from "../../../components/ui/Button";
 import Card from "../../../components/ui/Card";
 import orderService from "../services/order-service";
+import adminService from "../../admin/services/admin-service";
 import "../orders.css";
 
 function getDefaultDeliveryTime() {
@@ -17,8 +19,13 @@ function getDefaultDeliveryTime() {
 
 export default function CreateOrderPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   // Form State
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [pickupLocation, setPickupLocation] = useState("");
   const [dropoffLocation, setDropoffLocation] = useState("");
   const [packageDetails, setPackageDetails] = useState("");
@@ -29,6 +36,32 @@ export default function CreateOrderPage() {
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (isAdmin) {
+      adminService
+        .getCustomers()
+        .then((customerList) => {
+          if (isMounted) setCustomers(customerList);
+        })
+        .catch((error) => {
+          if (isMounted) {
+            setFormError(
+              error.response?.data?.message || "Could not load customers."
+            );
+          }
+        })
+        .finally(() => {
+          if (isMounted) setLoadingCustomers(false);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAdmin]);
+
   // Dynamic order summary calculations (realistic logistics fee model)
   const estimatedWeight = packageDetails ? Math.min(10, Math.max(1, Math.round(packageDetails.length / 25))) : 1;
   const baseShippingFee = 45; // EGP standard intra-city base fee
@@ -37,6 +70,10 @@ export default function CreateOrderPage() {
 
   function validate() {
     const nextErrors = {};
+
+    if (isAdmin && !selectedCustomerId) {
+      nextErrors.customerId = "Please select a customer.";
+    }
 
     if (!pickupLocation.trim()) {
       nextErrors.pickupLocation = "Pickup address is required.";
@@ -93,7 +130,12 @@ export default function CreateOrderPage() {
         deliveryTime: new Date(deliveryTime).toISOString(),
       };
 
-      const result = await orderService.createOrder(payload);
+      const result = isAdmin
+        ? await adminService.createOrderForCustomer({
+            ...payload,
+            customerId: selectedCustomerId,
+          })
+        : await orderService.createOrder(payload);
       const created = result.data;
 
       if (!created?.id) {
@@ -152,6 +194,46 @@ export default function CreateOrderPage() {
           {/* Main Form */}
           <Card>
             <form onSubmit={handleSubmit} noValidate>
+              {isAdmin && (
+                <div className="order-form-section">
+                  <div className="order-section-title">
+                    <span>Customer</span>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="customerId" className="form-label">
+                      Select Customer <span style={{ color: "var(--color-primary)" }}>*</span>
+                    </label>
+                    <select
+                      id="customerId"
+                      className="form-input"
+                      value={selectedCustomerId}
+                      disabled={loadingCustomers}
+                      onChange={(e) => {
+                        setSelectedCustomerId(e.target.value);
+                        if (errors.customerId) {
+                          setErrors((prev) => ({ ...prev, customerId: "" }));
+                        }
+                      }}
+                    >
+                      <option value="">
+                        {loadingCustomers ? "Loading customers..." : "Choose a customer"}
+                      </option>
+                      {customers.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.fullName} ({customer.email})
+                        </option>
+                      ))}
+                    </select>
+                    {errors.customerId && (
+                      <p className="form-error-text">{errors.customerId}</p>
+                    )}
+                    {!loadingCustomers && customers.length === 0 && (
+                      <p className="form-hint">No registered customers are available.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Section 1: Pickup Location */}
               <div className="order-form-section">
                 <div className="order-section-title">

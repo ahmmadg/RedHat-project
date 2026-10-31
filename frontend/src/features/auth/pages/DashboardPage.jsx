@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, Navigate } from "react-router-dom";
 import { useAuth } from "../../../contexts/AuthContext";
 import Navbar from "../../../components/layout/Navbar";
 import Button from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Card from "../../../components/ui/Card";
 import orderService from "../../orders/services/order-service";
+import adminService from "../../admin/services/admin-service";
 import {
   PackageIcon,
   TruckIcon,
@@ -67,49 +68,6 @@ const INITIAL_COURIER_STOPS = [
     cod: "EGP 620 (Cash on Delivery)",
     status: "pending",
     statusLabel: "Scheduled",
-  },
-];
-
-const ADMIN_COURIERS = [
-  {
-    id: "courier-1",
-    name: "Ahmed Tarek",
-    phone: "01012345678",
-    zone: "Nasr City & New Cairo",
-    deliveredCount: 9,
-    totalCount: 14,
-    status: "active",
-    statusLabel: "On Route",
-  },
-  {
-    id: "courier-2",
-    name: "Mahmoud Hassan",
-    phone: "01198765432",
-    zone: "Maadi & Helwan",
-    deliveredCount: 12,
-    totalCount: 15,
-    status: "active",
-    statusLabel: "On Route",
-  },
-  {
-    id: "courier-3",
-    name: "Karim Mostafa",
-    phone: "01234567890",
-    zone: "Dokki & Mohandessin",
-    deliveredCount: 15,
-    totalCount: 15,
-    status: "completed",
-    statusLabel: "Shift Completed",
-  },
-  {
-    id: "courier-4",
-    name: "Hossam Fikry",
-    phone: "01055667788",
-    zone: "Alexandria City Center",
-    deliveredCount: 8,
-    totalCount: 16,
-    status: "active",
-    statusLabel: "On Route",
   },
 ];
 
@@ -180,12 +138,20 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTrackingId, setActiveTrackingId] = useState("BST-9842-EG");
   const [myOrders, setMyOrders] = useState([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(
+    role !== "COURIER" && role !== "ADMIN"
+  );
+  const [couriers, setCouriers] = useState([]);
+  const [loadingCouriers, setLoadingCouriers] = useState(true);
+  const [courierError, setCourierError] = useState("");
+  const [adminOrders, setAdminOrders] = useState([]);
+  const [loadingAdminOrders, setLoadingAdminOrders] = useState(true);
+  const [adminOrdersError, setAdminOrdersError] = useState("");
 
   useEffect(() => {
     let isMounted = true;
+
     if (role !== "COURIER" && role !== "ADMIN") {
-      setLoadingOrders(true);
       orderService
         .getMyOrders()
         .then((res) => {
@@ -200,14 +166,148 @@ export default function DashboardPage() {
           if (isMounted) setLoadingOrders(false);
         });
     }
+
     return () => {
       isMounted = false;
     };
   }, [role]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    if (role === "ADMIN") {
+      adminService
+        .getCouriers()
+        .then((courierList) => {
+          if (isMounted) setCouriers(courierList);
+        })
+        .catch((error) => {
+          if (isMounted) {
+            setCourierError(
+              error.response?.data?.message || "Could not load couriers."
+            );
+          }
+        })
+        .finally(() => {
+          if (isMounted) setLoadingCouriers(false);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [role]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    if (role === "ADMIN") {
+      adminService
+        .getOrders()
+        .then((orderList) => {
+          if (isMounted) setAdminOrders(orderList);
+        })
+        .catch((error) => {
+          if (isMounted) {
+            setAdminOrdersError(
+              error.response?.data?.message || "Could not load orders."
+            );
+          }
+        })
+        .finally(() => {
+          if (isMounted) setLoadingAdminOrders(false);
+        });
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [role]);
+
+  const activeCourierCount = new Set(
+    adminOrders
+      .filter(
+        (order) =>
+          order.courierId &&
+          !["DELIVERED", "CANCELLED"].includes(order.status)
+      )
+      .map((order) => order.courierId)
+  ).size;
+
+  const awaitingAssignmentCount = adminOrders.filter(
+    (order) => order.status === "PENDING" && !order.courierId
+  ).length;
+
+  const deliveredOrderCount = adminOrders.filter(
+    (order) => order.status === "DELIVERED"
+  ).length;
+
+  async function refreshAdminDashboard() {
+    setLoadingAdminOrders(true);
+    setLoadingCouriers(true);
+    setAdminOrdersError("");
+    setCourierError("");
+
+    try {
+      const [orderList, courierList] = await Promise.all([
+        adminService.getOrders(),
+        adminService.getCouriers(),
+      ]);
+      setAdminOrders(orderList);
+      setCouriers(courierList);
+    } catch (error) {
+      const message =
+        error.response?.data?.message || "Could not refresh admin dashboard data.";
+      setAdminOrdersError(message);
+      setCourierError(message);
+    } finally {
+      setLoadingAdminOrders(false);
+      setLoadingCouriers(false);
+    }
+  }
+
+  function exportOrdersCsv() {
+    const columns = [
+      "Tracking Number",
+      "Customer",
+      "Pickup Location",
+      "Drop-off Location",
+      "Status",
+      "Courier",
+      "Delivery Time",
+    ];
+
+    const escapeCell = (value) =>
+      `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const rows = adminOrders.map((order) => [
+      order.trackingNumber,
+      order.customer?.fullName || "",
+      order.pickupLocation,
+      order.dropoffLocation,
+      order.status,
+      order.courier?.fullName || "Unassigned",
+      order.deliveryTime ? new Date(order.deliveryTime).toLocaleString() : "",
+    ]);
+    const csv = [columns, ...rows]
+      .map((row) => row.map(escapeCell).join(","))
+      .join("\r\n");
+    const file = new Blob([`\uFEFF${csv}`], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `trackflow-orders-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   const activeShipment =
-    SAMPLE_SHIPMENTS.find((s) => s.id.toLowerCase() === activeTrackingId.toLowerCase()) ||
-    SAMPLE_SHIPMENTS[0];
+    SAMPLE_SHIPMENTS.find(
+      (s) => s.id.toLowerCase() === activeTrackingId.toLowerCase()
+    ) || SAMPLE_SHIPMENTS[0];
 
   function handleMarkDelivered(stopId) {
     setCourierStops((prev) =>
@@ -218,7 +318,9 @@ export default function DashboardPage() {
         return stop;
       })
     );
-    setNotification(`Stop ${stopId} marked as successfully delivered! Proof of delivery recorded.`);
+    setNotification(
+      `Stop ${stopId} marked as successfully delivered! Proof of delivery recorded.`
+    );
   }
 
   async function handleSearch(e) {
@@ -226,25 +328,34 @@ export default function DashboardPage() {
     const query = searchQuery.trim();
     if (!query) return;
 
-    // 1. First check if it matches a real live order in the database
+    // First check if it matches a real live order in the database.
     try {
       const liveRes = await orderService.trackOrder(query);
       if (liveRes?.data?.id) {
         navigate(`/orders/${liveRes.data.id}`);
         return;
       }
-    } catch (err) {
-      // Not in live DB, check sample shipments
+    } catch {
+      // If the tracking number is not in the database, check sample shipments.
     }
 
-    // 2. Fall back to sample shipments
-    const found = SAMPLE_SHIPMENTS.find((s) => s.id.toUpperCase().includes(query.toUpperCase()));
+    // Fall back to sample shipments.
+    const found = SAMPLE_SHIPMENTS.find((s) =>
+      s.id.toUpperCase().includes(query.toUpperCase())
+    );
+
     if (found) {
       setActiveTrackingId(found.id);
       setNotification(`Tracking loaded for sample shipment ${found.id}`);
     } else {
-      setNotification(`No consignment found matching '${query}'. Please check the tracking number.`);
+      setNotification(
+        `No consignment found matching '${query}'. Please check the tracking number.`
+      );
     }
+  }
+
+  if (role === "COURIER") {
+    return <Navigate to="/courier" replace />;
   }
 
   return (
@@ -255,7 +366,11 @@ export default function DashboardPage() {
         {notification && (
           <div
             className="form-alert form-alert-success"
-            style={{ marginBottom: 24, display: "flex", justifyContent: "space-between" }}
+            style={{
+              marginBottom: 24,
+              display: "flex",
+              justifyContent: "space-between",
+            }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <CheckCircleIcon size={18} />
@@ -264,44 +379,72 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => setNotification("")}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "inherit" }}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "inherit",
+              }}
             >
               ✕
             </button>
           </div>
         )}
 
-        {/* =========================================================================
-            ROLE: COURIER DASHBOARD (Shown when user.role === "COURIER")
-            ========================================================================= */}
+        {/* COURIER DASHBOARD */}
         {role === "COURIER" && (
           <section>
-            {/* Courier Welcome Header */}
             <div style={{ marginBottom: 28 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 8,
+                }}
+              >
                 <span className="role-badge-pill role-badge-courier">
                   <TruckIcon size={16} />
                   <span>Courier Operations Portal</span>
                 </span>
-                <span style={{ fontSize: "0.875rem", color: "var(--color-slate-500)" }}>
+                <span
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "var(--color-slate-500)",
+                  }}
+                >
                   Zone 4 • Nasr City & New Cairo
                 </span>
               </div>
-              <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-slate-900)" }}>
+              <h1
+                style={{
+                  fontSize: "2rem",
+                  fontWeight: 800,
+                  color: "var(--color-slate-900)",
+                }}
+              >
                 Welcome, {displayName}!
               </h1>
-              <p style={{ color: "var(--color-slate-500)", fontSize: "0.9375rem" }}>
-                Here is your live delivery manifest and run sheet for today's assigned route.
+              <p
+                style={{
+                  color: "var(--color-slate-500)",
+                  fontSize: "0.9375rem",
+                }}
+              >
+                Here is your live delivery manifest and run sheet for today's
+                assigned route.
               </p>
             </div>
 
-            {/* Courier KPI Stats */}
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-card-info">
                   <h3>Assigned Stops</h3>
                   <div className="stat-card-val">{courierStops.length}</div>
-                  <div className="stat-card-badge" style={{ color: "var(--color-primary)" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "var(--color-primary)" }}
+                  >
                     <span>⚡ Today's manifest</span>
                   </div>
                 </div>
@@ -314,9 +457,15 @@ export default function DashboardPage() {
                 <div className="stat-card-info">
                   <h3>Delivered Stops</h3>
                   <div className="stat-card-val">
-                    {courierStops.filter((s) => s.status === "delivered").length}
+                    {
+                      courierStops.filter((s) => s.status === "delivered")
+                        .length
+                    }
                   </div>
-                  <div className="stat-card-badge" style={{ color: "#059669" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#059669" }}
+                  >
                     <span>✓ Completed</span>
                   </div>
                 </div>
@@ -329,9 +478,15 @@ export default function DashboardPage() {
                 <div className="stat-card-info">
                   <h3>Remaining Stops</h3>
                   <div className="stat-card-val">
-                    {courierStops.filter((s) => s.status !== "delivered").length}
+                    {
+                      courierStops.filter((s) => s.status !== "delivered")
+                        .length
+                    }
                   </div>
-                  <div className="stat-card-badge" style={{ color: "#d97706" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#d97706" }}
+                  >
                     <span>● En route</span>
                   </div>
                 </div>
@@ -343,10 +498,16 @@ export default function DashboardPage() {
               <div className="stat-card">
                 <div className="stat-card-info">
                   <h3>COD to Remit</h3>
-                  <div className="stat-card-val" style={{ fontSize: "1.6rem" }}>
+                  <div
+                    className="stat-card-val"
+                    style={{ fontSize: "1.6rem" }}
+                  >
                     EGP 1,960
                   </div>
-                  <div className="stat-card-badge" style={{ color: "#2563eb" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#2563eb" }}
+                  >
                     <span>Cash on Delivery</span>
                   </div>
                 </div>
@@ -356,7 +517,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Courier Action Bar */}
             <div
               style={{
                 display: "flex",
@@ -376,21 +536,29 @@ export default function DashboardPage() {
                   variant="primary"
                   size="sm"
                   icon={<MapPinIcon size={16} />}
-                  onClick={() => setNotification("Optimized route calculated via GPS navigation.")}
+                  onClick={() =>
+                    setNotification(
+                      "Optimized route calculated via GPS navigation."
+                    )
+                  }
                 >
                   Optimize Route Sequence
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setNotification("Camera barcode scanner initiated.")}
+                  onClick={() =>
+                    setNotification("Camera barcode scanner initiated.")
+                  }
                 >
                   📷 Scan Package Barcode
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setNotification("Contacting dispatch hub coordinator...")}
+                  onClick={() =>
+                    setNotification("Contacting dispatch hub coordinator...")
+                  }
                 >
                   📞 Call Hub Dispatch
                 </Button>
@@ -401,7 +569,6 @@ export default function DashboardPage() {
               </Badge>
             </div>
 
-            {/* Courier Daily Run Sheet */}
             <Card
               title="Today's Delivery Stops Sequence"
               subtitle="Follow the sequence below for optimal delivery timing and route efficiency."
@@ -415,7 +582,11 @@ export default function DashboardPage() {
                     <div
                       key={stop.id}
                       className={`stop-item-card ${
-                        isCurrent ? "current-stop" : isDelivered ? "completed-stop" : ""
+                        isCurrent
+                          ? "current-stop"
+                          : isDelivered
+                            ? "completed-stop"
+                            : ""
                       }`}
                     >
                       <div className="stop-seq-badge">
@@ -436,7 +607,11 @@ export default function DashboardPage() {
                           </span>
                           <Badge
                             variant={
-                              isDelivered ? "delivered" : isCurrent ? "in-transit" : "pending"
+                              isDelivered
+                                ? "delivered"
+                                : isCurrent
+                                  ? "in-transit"
+                                  : "pending"
                             }
                             dot={isCurrent}
                           >
@@ -449,9 +624,21 @@ export default function DashboardPage() {
                           <span>{stop.address}</span>
                         </div>
 
-                        <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 6 }}>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 12,
+                            alignItems: "center",
+                            marginTop: 6,
+                          }}
+                        >
                           <span className="stop-cod-pill">{stop.cod}</span>
-                          <span style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)" }}>
+                          <span
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--color-slate-500)",
+                            }}
+                          >
                             Tel: <strong>{stop.phone}</strong>
                           </span>
                         </div>
@@ -472,7 +659,9 @@ export default function DashboardPage() {
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            setNotification(`Calling recipient ${stop.customer} (${stop.phone})...`)
+                            setNotification(
+                              `Calling recipient ${stop.customer} (${stop.phone})...`
+                            )
                           }
                         >
                           📞 Call
@@ -486,14 +675,18 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* =========================================================================
-            ROLE: ADMIN DASHBOARD (Shown when user.role === "ADMIN")
-            ========================================================================= */}
+        {/* ADMIN DASHBOARD */}
         {role === "ADMIN" && (
           <section>
-            {/* Admin Welcome Header */}
             <div style={{ marginBottom: 28 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 8,
+                }}
+              >
                 <span className="role-badge-pill role-badge-admin">
                   <BarChartIcon size={16} />
                   <span>Central Operations Console</span>
@@ -502,22 +695,38 @@ export default function DashboardPage() {
                   Full Admin Privileges
                 </Badge>
               </div>
-              <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-slate-900)" }}>
+              <h1
+                style={{
+                  fontSize: "2rem",
+                  fontWeight: 800,
+                  color: "var(--color-slate-900)",
+                }}
+              >
                 Logistics Command Center
               </h1>
-              <p style={{ color: "var(--color-slate-500)", fontSize: "0.9375rem" }}>
-                Logged in as <strong>{displayName}</strong>. Real-time overview of active couriers, regional hubs, and consignment performance.
+              <p
+                style={{
+                  color: "var(--color-slate-500)",
+                  fontSize: "0.9375rem",
+                }}
+              >
+                Logged in as <strong>{displayName}</strong>. Real-time overview
+                using current orders and registered courier accounts.
               </p>
             </div>
 
-            {/* Admin Network KPI Stats */}
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-card-info">
-                  <h3>Network Shipments</h3>
-                  <div className="stat-card-val">1,482</div>
-                  <div className="stat-card-badge" style={{ color: "var(--color-primary)" }}>
-                    <span>Active today</span>
+                  <h3>Total Orders</h3>
+                  <div className="stat-card-val">
+                    {loadingAdminOrders ? "..." : adminOrders.length}
+                  </div>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "var(--color-primary)" }}
+                  >
+                    <span>Orders in the database</span>
                   </div>
                 </div>
                 <div className="stat-card-icon-box stat-icon-red">
@@ -528,9 +737,14 @@ export default function DashboardPage() {
               <div className="stat-card">
                 <div className="stat-card-info">
                   <h3>Active Couriers</h3>
-                  <div className="stat-card-val">48</div>
-                  <div className="stat-card-badge" style={{ color: "#059669" }}>
-                    <span>Dispatched in field</span>
+                  <div className="stat-card-val">
+                    {loadingAdminOrders ? "..." : activeCourierCount}
+                  </div>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#059669" }}
+                  >
+                    <span>With unfinished assigned orders</span>
                   </div>
                 </div>
                 <div className="stat-card-icon-box stat-icon-green">
@@ -540,66 +754,80 @@ export default function DashboardPage() {
 
               <div className="stat-card">
                 <div className="stat-card-info">
-                  <h3>Hub Throughput</h3>
-                  <div className="stat-card-val">99.4%</div>
-                  <div className="stat-card-badge" style={{ color: "#2563eb" }}>
-                    <span>On-time SLA</span>
+                  <h3>Awaiting Assignment</h3>
+                  <div className="stat-card-val">
+                    {loadingAdminOrders ? "..." : awaitingAssignmentCount}
+                  </div>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#2563eb" }}
+                  >
+                    <span>Pending orders without a courier</span>
                   </div>
                 </div>
                 <div className="stat-card-icon-box stat-icon-blue">
-                  <BarChartIcon size={24} />
+                  <ClockIcon size={24} />
                 </div>
               </div>
 
               <div className="stat-card">
                 <div className="stat-card-info">
-                  <h3>Regional Hubs</h3>
-                  <div className="stat-card-val">14 / 14</div>
-                  <div className="stat-card-badge" style={{ color: "#059669" }}>
-                    <span>All hubs operational</span>
+                  <h3>Delivered Orders</h3>
+                  <div className="stat-card-val">
+                    {loadingAdminOrders ? "..." : deliveredOrderCount}
+                  </div>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#059669" }}
+                  >
+                    <span>Orders marked delivered</span>
                   </div>
                 </div>
                 <div className="stat-card-icon-box stat-icon-green">
-                  <MapPinIcon size={24} />
+                  <CheckCircleIcon size={24} />
                 </div>
               </div>
             </div>
 
-            {/* Admin Management Toolbar */}
             <Card
-              title="Fleet & Hub Operations Controls"
-              subtitle="Execute high-level consignment assignments, fleet dispatching, and system reports."
+              title="Order Management Controls"
+              subtitle="Create orders, manage assignments, refresh data, or export the order list."
               className="mb-6"
             >
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                <Link to="/orders/new" style={{ textDecoration: "none" }}>
+                  <Button variant="primary" size="sm">
+                    + Create Order
+                  </Button>
+                </Link>
                 <Button
-                  variant="primary"
+                  variant="outline"
                   size="sm"
-                  onClick={() => setNotification("New consignment batch modal opened.")}
+                  onClick={() => navigate("/admin/orders")}
                 >
-                  + Create Regional Consignment Batch
+                  Manage Orders & Assign Couriers
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setNotification("Courier fleet metrics refreshed.")}
+                  onClick={refreshAdminDashboard}
                 >
-                  Reassign Courier Routes
+                  Refresh Dashboard Data
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setNotification("Exporting delivery SLA reports to CSV.")}
+                  onClick={exportOrdersCsv}
+                  disabled={loadingAdminOrders || adminOrders.length === 0}
                 >
-                  Export Monthly SLA Report
+                  Export Orders CSV
                 </Button>
               </div>
             </Card>
 
-            {/* Live Couriers Roster Table */}
             <Card
-              title="Active Courier Fleet"
-              subtitle="Monitoring assigned couriers, route completion rates, and active delivery zones."
+              title="Registered Couriers"
+              subtitle="Courier accounts registered in TrackFlow."
               className="mb-6"
             >
               <div className="table-responsive">
@@ -607,55 +835,42 @@ export default function DashboardPage() {
                   <thead>
                     <tr>
                       <th>Courier Name</th>
-                      <th>Assigned Zone</th>
-                      <th>Contact</th>
-                      <th>Today's Progress</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: "right" }}>Action</th>
+                      <th>Email</th>
+                      <th>Phone</th>
+                      <th>Role</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {ADMIN_COURIERS.map((courier) => (
-                      <tr key={courier.id}>
-                        <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div className="user-avatar-initial" style={{ width: 28, height: 28, fontSize: "0.75rem" }}>
-                              {courier.name[0]}
-                            </div>
-                            <span style={{ fontWeight: 700 }}>{courier.name}</span>
-                          </div>
-                        </td>
-                        <td style={{ color: "var(--color-slate-600)" }}>{courier.zone}</td>
-                        <td style={{ color: "var(--color-slate-600)" }}>{courier.phone}</td>
-                        <td>
-                          <strong>{courier.deliveredCount}</strong> / {courier.totalCount} stops
-                        </td>
-                        <td>
-                          <span className={`fleet-status-pill ${courier.status === "active" ? "fleet-active" : "fleet-idle"}`}>
-                            <span className="fleet-dot" />
-                            <span>{courier.statusLabel}</span>
-                          </span>
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setNotification(`Viewing live GPS breadcrumb for ${courier.name}.`)}
-                          >
-                            Live Route
-                          </Button>
-                        </td>
+                    {loadingCouriers ? (
+                      <tr>
+                        <td colSpan="4">Loading couriers...</td>
                       </tr>
-                    ))}
+                    ) : courierError ? (
+                      <tr>
+                        <td colSpan="4">{courierError}</td>
+                      </tr>
+                    ) : couriers.length === 0 ? (
+                      <tr>
+                        <td colSpan="4">No couriers found.</td>
+                      </tr>
+                    ) : (
+                      couriers.map((courier) => (
+                        <tr key={courier.id}>
+                          <td>{courier.fullName}</td>
+                          <td>{courier.email}</td>
+                          <td>{courier.phone || "—"}</td>
+                          <td>{courier.role}</td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </Card>
 
-            {/* Network Shipments Table */}
             <Card
               title="Global Network Shipments"
-              subtitle="Latest package consignments across Cairo, Alexandria, and Giza hubs."
+              subtitle="Latest orders recorded in TrackFlow."
             >
               <div className="table-responsive">
                 <table className="tracking-table">
@@ -670,25 +885,48 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {SAMPLE_SHIPMENTS.map((shipment) => (
-                      <tr key={shipment.id}>
-                        <td>
-                          <div className="tracking-num-cell">
-                            <PackageIcon size={16} style={{ color: "var(--color-primary)" }} />
-                            <span>{shipment.id}</span>
-                          </div>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{shipment.recipient}</td>
-                        <td style={{ color: "var(--color-slate-600)" }}>{shipment.city}</td>
-                        <td style={{ color: "var(--color-slate-600)" }}>{shipment.courier}</td>
-                        <td>
-                          <Badge variant={shipment.status} dot={true}>
-                            {shipment.statusLabel}
-                          </Badge>
-                        </td>
-                        <td style={{ fontWeight: 600 }}>{shipment.eta}</td>
+                    {loadingAdminOrders ? (
+                      <tr>
+                        <td colSpan="6">Loading orders...</td>
                       </tr>
-                    ))}
+                    ) : adminOrdersError ? (
+                      <tr>
+                        <td colSpan="6">{adminOrdersError}</td>
+                      </tr>
+                    ) : adminOrders.length === 0 ? (
+                      <tr>
+                        <td colSpan="6">No orders found.</td>
+                      </tr>
+                    ) : (
+                      adminOrders.map((order) => (
+                        <tr key={order.id}>
+                          <td>
+                            <div className="tracking-num-cell">
+                              <PackageIcon
+                                size={16}
+                                style={{ color: "var(--color-primary)" }}
+                              />
+                              <span>{order.trackingNumber}</span>
+                            </div>
+                          </td>
+                          <td style={{ fontWeight: 600 }}>
+                            {order.customer?.fullName || "—"}
+                          </td>
+                          <td style={{ color: "var(--color-slate-600)" }}>
+                            {order.dropoffLocation}
+                          </td>
+                          <td style={{ color: "var(--color-slate-600)" }}>
+                            {order.courier?.fullName || "Unassigned"}
+                          </td>
+                          <td>{(order.status || "UNKNOWN").replaceAll("_", " ")}</td>
+                          <td style={{ fontWeight: 600 }}>
+                            {order.deliveryTime
+                              ? new Date(order.deliveryTime).toLocaleString()
+                              : "—"}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -696,36 +934,57 @@ export default function DashboardPage() {
           </section>
         )}
 
-        {/* =========================================================================
-            ROLE: CUSTOMER / USER DASHBOARD (Shown when user.role === "USER")
-            ========================================================================= */}
+        {/* CUSTOMER / USER DASHBOARD */}
         {role !== "COURIER" && role !== "ADMIN" && (
           <section>
-            {/* Customer Welcome Header */}
             <div style={{ marginBottom: 28 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 8,
+                }}
+              >
                 <span className="role-badge-pill role-badge-customer">
                   <UserIcon size={16} />
                   <span>Customer Portal</span>
                 </span>
-                <span style={{ fontSize: "0.875rem", color: "var(--color-slate-500)" }}>
+                <span
+                  style={{
+                    fontSize: "0.875rem",
+                    color: "var(--color-slate-500)",
+                  }}
+                >
                   Personal & Merchant Shipments
                 </span>
               </div>
-              <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--color-slate-900)" }}>
+              <h1
+                style={{
+                  fontSize: "2rem",
+                  fontWeight: 800,
+                  color: "var(--color-slate-900)",
+                }}
+              >
                 Welcome back, {displayName}!
               </h1>
-              <p style={{ color: "var(--color-slate-500)", fontSize: "0.9375rem" }}>
-                Track your orders live and monitor incoming parcel deliveries in real time.
+              <p
+                style={{
+                  color: "var(--color-slate-500)",
+                  fontSize: "0.9375rem",
+                }}
+              >
+                Track your orders live and monitor incoming parcel deliveries
+                in real time.
               </p>
             </div>
 
-            {/* Customer Hero Quick-Track Search Bar */}
             <section className="tracking-hero-bar">
               <div className="tracking-hero-header">
                 <h2>Track Your Shipments Live</h2>
                 <p>
-                  Real-time GPS dispatch and parcel milestones powered by TrackFlow's express network.
+                  Real-time GPS dispatch and parcel milestones powered by
+                  TrackFlow's express network.
                 </p>
               </div>
 
@@ -743,37 +1002,44 @@ export default function DashboardPage() {
                   </span>
                 </div>
 
-                <Button type="submit" variant="primary" size="lg" icon={<TruckIcon size={18} />}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  icon={<TruckIcon size={18} />}
+                >
                   Track Parcel
                 </Button>
               </form>
 
               <div className="quick-tags">
                 <span>Try sample tracking numbers:</span>
-                {SAMPLE_SHIPMENTS.map((s) => (
+                {SAMPLE_SHIPMENTS.map((shipment) => (
                   <button
                     type="button"
-                    key={s.id}
+                    key={shipment.id}
                     className="quick-tag-chip"
                     onClick={() => {
-                      setActiveTrackingId(s.id);
-                      setSearchQuery(s.id);
-                      setNotification(`Switched to shipment ${s.id}`);
+                      setActiveTrackingId(shipment.id);
+                      setSearchQuery(shipment.id);
+                      setNotification(`Switched to shipment ${shipment.id}`);
                     }}
                   >
-                    {s.id}
+                    {shipment.id}
                   </button>
                 ))}
               </div>
             </section>
 
-            {/* Customer KPI Stat Cards */}
             <div className="stats-grid">
               <div className="stat-card">
                 <div className="stat-card-info">
                   <h3>In Transit</h3>
                   <div className="stat-card-val">2</div>
-                  <div className="stat-card-badge" style={{ color: "var(--color-primary)" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "var(--color-primary)" }}
+                  >
                     <span>⚡ On route</span>
                   </div>
                 </div>
@@ -786,7 +1052,10 @@ export default function DashboardPage() {
                 <div className="stat-card-info">
                   <h3>Arriving Today</h3>
                   <div className="stat-card-val">1</div>
-                  <div className="stat-card-badge" style={{ color: "#d97706" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#d97706" }}
+                  >
                     <span>● Out for delivery</span>
                   </div>
                 </div>
@@ -799,7 +1068,10 @@ export default function DashboardPage() {
                 <div className="stat-card-info">
                   <h3>Delivered</h3>
                   <div className="stat-card-val">18</div>
-                  <div className="stat-card-badge" style={{ color: "#059669" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#059669" }}
+                  >
                     <span>✓ Completed</span>
                   </div>
                 </div>
@@ -812,7 +1084,10 @@ export default function DashboardPage() {
                 <div className="stat-card-info">
                   <h3>Saved Addresses</h3>
                   <div className="stat-card-val">3</div>
-                  <div className="stat-card-badge" style={{ color: "#2563eb" }}>
+                  <div
+                    className="stat-card-badge"
+                    style={{ color: "#2563eb" }}
+                  >
                     <span>Cairo & Alex</span>
                   </div>
                 </div>
@@ -822,13 +1097,16 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Live Booked Deliveries Section */}
             <Card
               title="Your Booked Consignments"
               subtitle="Real orders created in your TrackFlow account"
               action={
                 <Link to="/orders/new">
-                  <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<PackageIcon size={16} />}
+                  >
                     + New Booking
                   </Button>
                 </Link>
@@ -836,15 +1114,34 @@ export default function DashboardPage() {
               style={{ marginBottom: 28 }}
             >
               {loadingOrders ? (
-                <div style={{ padding: "24px 0", textAlign: "center", color: "var(--color-slate-500)" }}>
-                  <div className="btn-spinner" style={{ width: 24, height: 24, margin: "0 auto 8px" }} />
+                <div
+                  style={{
+                    padding: "24px 0",
+                    textAlign: "center",
+                    color: "var(--color-slate-500)",
+                  }}
+                >
+                  <div
+                    className="btn-spinner"
+                    style={{
+                      width: 24,
+                      height: 24,
+                      margin: "0 auto 8px",
+                    }}
+                  />
                   <span>Loading your booked orders...</span>
                 </div>
               ) : myOrders.length > 0 ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {myOrders.map((ord) => (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 12,
+                  }}
+                >
+                  {myOrders.map((order) => (
                     <div
-                      key={ord.id}
+                      key={order.id}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -857,7 +1154,13 @@ export default function DashboardPage() {
                         gap: 12,
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 16,
+                        }}
+                      >
                         <div
                           style={{
                             width: 36,
@@ -873,8 +1176,15 @@ export default function DashboardPage() {
                         >
                           <PackageIcon size={18} />
                         </div>
+
                         <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 10,
+                            }}
+                          >
                             <span
                               style={{
                                 fontFamily: "var(--font-mono, monospace)",
@@ -883,29 +1193,43 @@ export default function DashboardPage() {
                                 color: "var(--color-slate-900)",
                               }}
                             >
-                              {ord.trackingNumber}
+                              {order.trackingNumber}
                             </span>
                             <Badge
                               variant={
-                                ord.status === "DELIVERED"
+                                order.status === "DELIVERED"
                                   ? "delivered"
-                                  : ord.status === "CANCELLED"
-                                  ? "brand"
-                                  : "pending"
+                                  : order.status === "CANCELLED"
+                                    ? "brand"
+                                    : "pending"
                               }
-                              dot={ord.status !== "CANCELLED"}
+                              dot={order.status !== "CANCELLED"}
                             >
-                              {ord.status}
+                              {order.status}
                             </Badge>
                           </div>
-                          <div style={{ fontSize: "0.8125rem", color: "var(--color-slate-500)", marginTop: 4 }}>
-                            From <strong>{ord.pickupLocation}</strong> ➔ To <strong>{ord.dropoffLocation}</strong>
+
+                          <div
+                            style={{
+                              fontSize: "0.8125rem",
+                              color: "var(--color-slate-500)",
+                              marginTop: 4,
+                            }}
+                          >
+                            From <strong>{order.pickupLocation}</strong> ➔ To{" "}
+                            <strong>{order.dropoffLocation}</strong>
                           </div>
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <Link to={`/orders/${ord.id}`}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                        }}
+                      >
+                        <Link to={`/orders/${order.id}`}>
                           <Button variant="outline" size="sm">
                             View Details ➔
                           </Button>
@@ -916,15 +1240,38 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div style={{ textAlign: "center", padding: "32px 16px" }}>
-                  <PackageIcon size={36} style={{ color: "var(--color-slate-300)", margin: "0 auto 10px" }} />
-                  <div style={{ fontWeight: 700, color: "var(--color-slate-700)" }}>
+                  <PackageIcon
+                    size={36}
+                    style={{
+                      color: "var(--color-slate-300)",
+                      margin: "0 auto 10px",
+                    }}
+                  />
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--color-slate-700)",
+                    }}
+                  >
                     No orders booked yet
                   </div>
-                  <p style={{ fontSize: "0.875rem", color: "var(--color-slate-500)", marginTop: 4, marginBottom: 16 }}>
-                    Book your first parcel pickup and delivery in under 1 minute.
+                  <p
+                    style={{
+                      fontSize: "0.875rem",
+                      color: "var(--color-slate-500)",
+                      marginTop: 4,
+                      marginBottom: 16,
+                    }}
+                  >
+                    Book your first parcel pickup and delivery in under 1
+                    minute.
                   </p>
                   <Link to="/orders/new">
-                    <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      icon={<PackageIcon size={16} />}
+                    >
                       Book Your First Order
                     </Button>
                   </Link>
@@ -932,11 +1279,17 @@ export default function DashboardPage() {
               )}
             </Card>
 
-            {/* Active Shipment Milestone Stepper */}
             <section className="tracking-timeline-card">
               <div className="timeline-header">
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      marginBottom: 4,
+                    }}
+                  >
                     <span
                       style={{
                         fontFamily: "var(--font-mono)",
@@ -951,14 +1304,25 @@ export default function DashboardPage() {
                       {activeShipment.statusLabel}
                     </Badge>
                   </div>
-                  <p style={{ color: "var(--color-slate-500)", fontSize: "0.875rem" }}>
-                    Recipient: <strong>{activeShipment.recipient}</strong> • Destination:{" "}
-                    <strong>{activeShipment.city}</strong>
+                  <p
+                    style={{
+                      color: "var(--color-slate-500)",
+                      fontSize: "0.875rem",
+                    }}
+                  >
+                    Recipient: <strong>{activeShipment.recipient}</strong> •
+                    Destination: <strong>{activeShipment.city}</strong>
                   </p>
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "0.75rem", color: "var(--color-slate-500)", fontWeight: 600 }}>
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      color: "var(--color-slate-500)",
+                      fontWeight: 600,
+                    }}
+                  >
                     ESTIMATED ARRIVAL
                   </div>
                   <div
@@ -980,18 +1344,26 @@ export default function DashboardPage() {
                   const stepStatusClass = isCompleted
                     ? "completed"
                     : isActive
-                    ? "active"
-                    : "upcoming";
+                      ? "active"
+                      : "upcoming";
 
                   return (
-                    <div key={step.title} className={`timeline-step ${stepStatusClass}`}>
+                    <div
+                      key={step.title}
+                      className={`timeline-step ${stepStatusClass}`}
+                    >
                       <div className="step-node">
                         {isCompleted ? "✓" : isActive ? "●" : index + 1}
                       </div>
                       <div className="step-title">{step.title}</div>
                       <div className="step-subtitle">
                         <div>{step.time}</div>
-                        <div style={{ color: "var(--color-slate-400)", marginTop: 2 }}>
+                        <div
+                          style={{
+                            color: "var(--color-slate-400)",
+                            marginTop: 2,
+                          }}
+                        >
                           {step.location}
                         </div>
                       </div>
@@ -1001,7 +1373,6 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            {/* Customer Shipments Table */}
             <Card
               title="My Orders & Shipments"
               subtitle="Latest orders shipped to or from your account."
@@ -1024,13 +1395,22 @@ export default function DashboardPage() {
                       <tr key={shipment.id}>
                         <td>
                           <div className="tracking-num-cell">
-                            <PackageIcon size={16} style={{ color: "var(--color-primary)" }} />
+                            <PackageIcon
+                              size={16}
+                              style={{ color: "var(--color-primary)" }}
+                            />
                             <span>{shipment.id}</span>
                           </div>
                         </td>
-                        <td style={{ fontWeight: 600 }}>{shipment.recipient}</td>
-                        <td style={{ color: "var(--color-slate-600)" }}>{shipment.city}</td>
-                        <td style={{ color: "var(--color-slate-600)" }}>{shipment.courier}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          {shipment.recipient}
+                        </td>
+                        <td style={{ color: "var(--color-slate-600)" }}>
+                          {shipment.city}
+                        </td>
+                        <td style={{ color: "var(--color-slate-600)" }}>
+                          {shipment.courier}
+                        </td>
                         <td>
                           <Badge variant={shipment.status} dot={true}>
                             {shipment.statusLabel}
@@ -1039,15 +1419,23 @@ export default function DashboardPage() {
                         <td style={{ fontWeight: 600 }}>{shipment.eta}</td>
                         <td style={{ textAlign: "right" }}>
                           <Button
-                            variant={activeTrackingId === shipment.id ? "primary" : "outline"}
+                            variant={
+                              activeTrackingId === shipment.id
+                                ? "primary"
+                                : "outline"
+                            }
                             size="sm"
                             onClick={() => {
                               setActiveTrackingId(shipment.id);
                               setSearchQuery(shipment.id);
-                              setNotification(`Viewing detailed tracking for ${shipment.id}`);
+                              setNotification(
+                                `Viewing detailed tracking for ${shipment.id}`
+                              );
                             }}
                           >
-                            {activeTrackingId === shipment.id ? "Viewing" : "Track"}
+                            {activeTrackingId === shipment.id
+                              ? "Viewing"
+                              : "Track"}
                           </Button>
                         </td>
                       </tr>
@@ -1061,4 +1449,4 @@ export default function DashboardPage() {
       </main>
     </div>
   );
-}
+} 

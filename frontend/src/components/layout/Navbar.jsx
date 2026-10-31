@@ -20,6 +20,7 @@ export default function Navbar() {
 
   const getInitials = (name) => {
     if (!name) return "U";
+
     return name
       .split(" ")
       .map((part) => part[0])
@@ -35,6 +36,7 @@ export default function Navbar() {
           <div className="brand-icon-box" style={{ width: 38, height: 38 }}>
             <PackageIcon size={20} />
           </div>
+
           <div>
             <div className="nav-brand-text">
               Track<span>Flow</span>
@@ -46,22 +48,49 @@ export default function Navbar() {
         <div className="nav-user-controls">
           {isAuthenticated && (
             <>
-              <Link to="/orders/new" style={{ textDecoration: "none" }}>
-                <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
-                  + New Order
-                </Button>
-              </Link>
+              {user?.role === "ADMIN" && (
+                <Link to="/admin/orders" style={{ textDecoration: "none" }}>
+                  <Button variant="outline" size="sm">
+                    Manage Orders
+                  </Button>
+                </Link>
+              )}
+
+              {user?.role !== "COURIER" && (
+                <Link to="/orders/new" style={{ textDecoration: "none" }}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    icon={<PackageIcon size={16} />}
+                  >
+                    + New Order
+                  </Button>
+                </Link>
+              )}
+
+              {user?.role === "COURIER" && (
+                <Link to="/courier" style={{ textDecoration: "none" }}>
+                  <Button variant="outline" size="sm">
+                    Assigned Orders
+                  </Button>
+                </Link>
+              )}
 
               <div className="user-profile-chip">
                 <div className="user-avatar-initial">
                   {getInitials(user?.name || user?.fullName || user?.email)}
                 </div>
+
                 <div>
                   <div className="user-meta-name">
                     {user?.name || user?.fullName || user?.email || "User"}
                   </div>
+
                   <div style={{ marginTop: 2 }}>
-                    <Badge variant={getRoleVariant(user?.role)} dot={false}>
+                    <Badge
+                      variant={getRoleVariant(user?.role)}
+                      dot={false}
+                    >
                       {user?.role || "CUSTOMER"}
                     </Badge>
                   </div>
@@ -82,7 +111,11 @@ export default function Navbar() {
 
           {!isAuthenticated && (
             <Link to="/login">
-              <Button variant="primary" size="sm" icon={<UserIcon size={16} />}>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<UserIcon size={16} />}
+              >
                 Sign In
               </Button>
             </Link>

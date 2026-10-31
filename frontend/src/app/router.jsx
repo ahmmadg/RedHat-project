@@ -2,11 +2,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "../contexts/AuthContext";
 import ProtectedRoute from "../routes/ProtectedRoute";
 import RoleRoute from "../routes/RoleRoute";
+
 import LoginPage from "../features/auth/pages/LoginPage";
 import RegisterPage from "../features/auth/pages/RegisterPage";
 import DashboardPage from "../features/auth/pages/DashboardPage";
 import CreateOrderPage from "../features/orders/pages/CreateOrderPage";
 import OrderDetailsPage from "../features/orders/pages/OrderDetailsPage";
+import AdminOrdersPage from "../features/admin/pages/AdminOrdersPage";
+import CourierOrdersPage from "../features/courier/pages/CourierOrdersPage";
 
 export default function AppRouter() {
   return (
@@ -22,17 +25,15 @@ export default function AppRouter() {
             <Route path="/orders/:id" element={<OrderDetailsPage />} />
 
             <Route element={<RoleRoute allowedRoles={["COURIER"]} />}>
-              <Route
-                path="/courier"
-                element={<DashboardPage />}
-              />
+              <Route path="/courier" element={<CourierOrdersPage />} />
             </Route>
 
             <Route element={<RoleRoute allowedRoles={["ADMIN"]} />}>
               <Route
                 path="/admin"
-                element={<DashboardPage />}
+                element={<Navigate to="/admin/orders" replace />}
               />
+              <Route path="/admin/orders" element={<AdminOrdersPage />} />
             </Route>
           </Route>
 
