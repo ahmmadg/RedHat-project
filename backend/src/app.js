@@ -1,0 +1,41 @@
+import express from "express";
+import cors from "cors";
+import authRoutes from "./presentation/routes/auth-routes.js";
+import orderRoutes from "./presentation/routes/order-routes.js";
+import adminRoutes from "./presentation/routes/admin-routes.js";
+import courierRoutes from "./presentation/routes/courier-routes.js";
+
+const app = express();
+
+app.use(cors({
+  origin: "http://localhost:5173",
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+}));
+app.use(express.json());
+
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "Parcel Tracking API is running",
+  });
+});
+
+app.use("/api/auth", authRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/courier", courierRoutes);
+
+// Central error handler
+app.use((err, req, res, next) => {
+  console.error(err);
+
+  res.status(err.statusCode || 500).json({
+    message:
+      err.statusCode && err.statusCode < 500
+        ? err.message
+        : "Internal server error",
+  });
+});
+
+export default app;
