@@ -46,11 +46,21 @@ export default function Navbar() {
         <div className="nav-user-controls">
           {isAuthenticated && (
             <>
-              <Link to="/orders/new" style={{ textDecoration: "none" }}>
-                <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
-                  + New Order
-                </Button>
-              </Link>
+              {user?.role !== "COURIER" && (
+                <>
+                  <Link to="/my-orders" style={{ textDecoration: "none" }}>
+                    <Button variant="outline" size="sm">
+                      My Orders
+                    </Button>
+                  </Link>
+
+                  <Link to="/orders/new" style={{ textDecoration: "none" }}>
+                    <Button variant="primary" size="sm" icon={<PackageIcon size={16} />}>
+                      + New Order
+                    </Button>
+                  </Link>
+                </>
+              )}
 
               <div className="user-profile-chip">
                 <div className="user-avatar-initial">
