@@ -8,6 +8,7 @@ import RegisterPage from "../features/auth/pages/RegisterPage";
 import DashboardPage from "../features/auth/pages/DashboardPage";
 import CreateOrderPage from "../features/orders/pages/CreateOrderPage";
 import OrderDetailsPage from "../features/orders/pages/OrderDetailsPage";
+import MyOrdersPage from "../features/orders/pages/MyOrdersPage";
 import AdminOrdersPage from "../features/admin/pages/AdminOrdersPage";
 import CourierOrdersPage from "../features/courier/pages/CourierOrdersPage";
 
@@ -21,6 +22,7 @@ export default function AppRouter() {
 
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/my-orders" element={<MyOrdersPage />} />
             <Route path="/orders/new" element={<CreateOrderPage />} />
             <Route path="/orders/:id" element={<OrderDetailsPage />} />
 
