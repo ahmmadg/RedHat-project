@@ -1,6 +1,4 @@
-import bcrypt from "bcrypt";
-
-export function createRegisterUser(userRepository) {
+export function createRegisterUser(userRepository, passwordHasher) {
   return async function registerUser({
     fullName,
     email,
@@ -15,7 +13,7 @@ export function createRegisterUser(userRepository) {
       throw error;
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+    const passwordHash = await passwordHasher.hash(password);
 
     const user = await userRepository.create({
       fullName,

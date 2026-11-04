@@ -1,11 +1,12 @@
 import express from "express";
 import cors from "cors";
 import authRoutes from "./presentation/routes/auth-routes.js";
-import protectedRoutes from "./presentation/routes/protected-routes.js";
 import orderRoutes from "./presentation/routes/order-routes.js";
 import adminRoutes from "./presentation/routes/admin-routes.js";
 import courierRoutes from "./presentation/routes/courier-routes.js";
+
 const app = express();
+
 app.use(cors({
   origin: "http://localhost:5173",
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -22,9 +23,9 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/orders", orderRoutes);
-app.use("/api", protectedRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/courier", courierRoutes);
+
 // Central error handler
 app.use((err, req, res, next) => {
   console.error(err);
