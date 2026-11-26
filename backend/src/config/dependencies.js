@@ -31,7 +31,7 @@ const userRepository = createPrismaUserRepository(prisma);
 const orderRepository = createPrismaOrderRepository(prisma);
 
 // Auth use cases (Member 1)
-export const registerUser = createRegisterUser(userRepository);
+export const registerUser = createRegisterUser(userRepository, passwordHasher);
 
 export const loginUser = createLoginUser({
   userRepository,

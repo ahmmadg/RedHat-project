@@ -56,14 +56,6 @@ export default function Navbar() {
                 </Link>
               )}
 
-              {user?.role === "COURIER" && (
-                <Link to="/courier" style={{ textDecoration: "none" }}>
-                  <Button variant="outline" size="sm">
-                    Assigned Orders
-                  </Button>
-                </Link>
-              )}
-
               {user?.role !== "COURIER" && (
                 <>
                   <Link to="/my-orders" style={{ textDecoration: "none" }}>
