@@ -1,0 +1,68 @@
+# ============================================================
+# TrackFlow — Podman Compose (Phase 2 Approach 2)
+# ============================================================
+
+services:
+  # ---- 1. PostgreSQL Database Service ----
+  database:
+    container_name: trackflow-db
+    build:
+      context: ./database
+      dockerfile: Containerfile
+    environment:
+      POSTGRES_USER: trackflow
+      POSTGRES_PASSWORD: trackflow_pass
+      POSTGRES_DB: trackflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - trackflow-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trackflow -d trackflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---- 2. Node.js / Express Backend Service ----
+  backend:
+    container_name: trackflow-backend
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://trackflow:trackflow_pass@trackflow-db:5432/trackflow?schema=public
+      JWT_SECRET: 10778be972f7153634da039ab60f84a22789bf72e350ade64b83a0924895e713
+    ports:
+      - "4000:4000"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - trackflow-net
+
+  # ---- 3. React / Nginx Frontend Service ----
+  frontend:
+    container_name: trackflow-frontend
+    build:
+      context: ./frontend
+      dockerfile: Containerfile
+      args:
+        VITE_API_URL: /api
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - trackflow-net
+
+# ---- Shared Isolated Bridge Network ----
+networks:
+  trackflow-net:
+    driver: bridge
+
+# ---- Persistent Named Storage Volume ----
+volumes:
+  pgdata:
