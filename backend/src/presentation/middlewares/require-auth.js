@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { getSecret } from "../../config/secrets.js";
 
 export function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -18,7 +19,8 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET, {
+    const jwtSecret = getSecret("jwt_secret", "JWT_SECRET");
+    const payload = jwt.verify(token, jwtSecret, {
       algorithms: ["HS256"],
     });
 
