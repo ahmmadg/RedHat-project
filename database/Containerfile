@@ -1,0 +1,9 @@
+FROM docker.io/library/postgres:16-alpine
+
+ENV POSTGRES_USER=trackflow \
+    POSTGRES_DB=trackflow
+
+COPY schema.sql /docker-entrypoint-initdb.d/01-schema.sql
+COPY init.sql   /docker-entrypoint-initdb.d/02-seed.sql
+
+EXPOSE 5432
