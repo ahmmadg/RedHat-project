@@ -11,12 +11,14 @@ services:
       dockerfile: Containerfile
     environment:
       POSTGRES_USER: trackflow
-      POSTGRES_PASSWORD: trackflow_pass
       POSTGRES_DB: trackflow
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    secrets:
+      - db_password
     networks:
       - trackflow-net
     healthcheck:
@@ -34,9 +36,11 @@ services:
     environment:
       PORT: 4000
       DATABASE_URL: postgresql://trackflow:trackflow_pass@trackflow-db:5432/trackflow?schema=public
-      JWT_SECRET: 10778be972f7153634da039ab60f84a22789bf72e350ade64b83a0924895e713
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
+    secrets:
+      - jwt_secret
+      - db_password
     depends_on:
       database:
         condition: service_healthy
@@ -52,11 +56,18 @@ services:
       args:
         VITE_API_URL: /api
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
     depends_on:
       - backend
     networks:
       - trackflow-net
+
+# ---- Podman Secrets (created externally) ----
+secrets:
+  jwt_secret:
+    external: true
+  db_password:
+    external: true
 
 # ---- Shared Isolated Bridge Network ----
 networks:
