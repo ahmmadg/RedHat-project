@@ -1,4 +1,3 @@
-
 #!/bin/bash
 set -e
 
@@ -15,15 +14,15 @@ echo "Creating network and volume if needed..."
 podman network exists trackflow-net || podman network create trackflow-net
 podman volume exists pgdata || podman volume create pgdata
 
+echo "Pulling images from Docker Hub..."
+
+podman pull docker.io/rawanashraf/trackflow-database:v1
+podman pull docker.io/rawanashraf/trackflow-backend:v1
+podman pull docker.io/rawanashraf/trackflow-frontend:v1
+
 echo "Removing old containers if they exist..."
 
 podman rm -f trackflow-frontend trackflow-backend trackflow-db 2>/dev/null || true
-
-echo "Building images..."
-
-podman build -t trackflow-database:v1 ./database
-podman build -t trackflow-backend:v1 ./backend
-podman build -t trackflow-frontend:v1 ./frontend
 
 echo "Starting database..."
 
@@ -36,7 +35,7 @@ podman run -d \
   -e POSTGRES_DB=trackflow \
   -e POSTGRES_PASSWORD_FILE=/run/secrets/db_password \
   --secret db_password \
-  trackflow-database:v1
+  docker.io/rawanashraf/trackflow-database:v1
 
 echo "Waiting for database..."
 
@@ -56,10 +55,10 @@ podman run -d \
   --network trackflow-net \
   -p 127.0.0.1:4000:4000 \
   -e PORT=4000 \
-  -e DATABASE_URL="postgresql://trackflow:trackflow_pass@trackflow-db:5432/trackflow?schema=public" \
   --secret db_password \
   --secret jwt_secret \
-  trackflow-backend:v1
+  docker.io/rawanashraf/trackflow-backend:v1 \
+  sh -c 'export DATABASE_URL="postgresql://trackflow:$(cat /run/secrets/db_password)@trackflow-db:5432/trackflow?schema=public"; exec node src/server.js'
 
 echo "Starting frontend..."
 
@@ -67,7 +66,7 @@ podman run -d \
   --name trackflow-frontend \
   --network trackflow-net \
   -p 127.0.0.1:5173:80 \
-  trackflow-frontend:v1
+  docker.io/rawanashraf/trackflow-frontend:v1
 
 echo "Deployment completed successfully!"
 echo "Frontend: http://localhost:5173"

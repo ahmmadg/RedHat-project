@@ -1,3 +1,4 @@
+
 # ============================================================
 # TrackFlow — Podman Compose (Phase 2 Approach 2)
 # ============================================================
@@ -35,7 +36,12 @@ services:
       dockerfile: Containerfile
     environment:
       PORT: 4000
-      DATABASE_URL: postgresql://trackflow:trackflow_pass@trackflow-db:5432/trackflow?schema=public
+    command:
+      - sh
+      - -c
+      - |
+        export DATABASE_URL="postgresql://trackflow:$(cat /run/secrets/db_password)@database:5432/trackflow?schema=public"
+        exec node src/server.js
     ports:
       - "127.0.0.1:4000:4000"
     secrets:

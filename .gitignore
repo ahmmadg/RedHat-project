@@ -1,1 +1,6 @@
 secrets/
+# Local environment files
+backend/.env
+
+# Local logs
+*.log

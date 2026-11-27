@@ -10,10 +10,10 @@ Run the following commands in your terminal to create the Podman secrets:
 
 ```bash
 # Create JWT Secret
-echo -n "10778be972f7153634da039ab60f84a22789bf72e350ade64b83a0924895e713" | podman secret create jwt_secret -
+echo -n "YOUR_JWT_SECRET_HERE" | podman secret create jwt_secret -
 
 # Create Database Password Secret (for PostgreSQL container)
-echo -n "trackflow_secure_pass_2026" | podman secret create db_password -
+echo -n "YOUR_DB_PASSWORD_HERE" | podman secret create db_password -
 ```
 
 ---
@@ -38,7 +38,7 @@ podman run -d \
   --name backend \
   --network trackflow-net \
   --secret jwt_secret,type=mount,target=/run/secrets/jwt_secret \
-  -e DATABASE_URL="postgresql://trackflow:trackflow_secure_pass_2026@database:5432/trackflow_db" \
+  -e DATABASE_URL="postgresql://trackflow:YOUR_DB_PASSWORD_HERE@database:5432/trackflow?schema=public"
   -p 4000:4000 \
   trackflow-backend
 ```
